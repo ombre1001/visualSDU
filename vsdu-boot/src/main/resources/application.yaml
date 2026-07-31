@@ -1,3 +1,24 @@
 spring:
   application:
     name: visual-sdu
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://8.130.108.118:3306/vsdu-db
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+
+vsdu:
+  jwt:
+    sdupass:
+      sdu-pass-secret: ${SDU_PASS_SECRET}
+      salt: KOISHIKISHIKAWAIIKAWAIIKISSKISSLOVELY
+      iteration-cound: 114514
+      key-length: 256
+
+cloudflare:
+  r2:
+    endpoint: https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+    access-key-id: ${R2_ACCESS_KEY_ID}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY}
+    bucket: vsdu-bucket

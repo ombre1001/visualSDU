@@ -24,6 +24,9 @@ public class SduPassClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
 
+        if (rs == null) {
+            throw new RuntimeException("Sdu Pass不好使了");
+        }
         return objectMapper.convertValue(rs.data(), StudentInfo.class);
     }
 
