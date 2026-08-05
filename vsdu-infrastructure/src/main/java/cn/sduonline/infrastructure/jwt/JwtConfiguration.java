@@ -5,6 +5,8 @@ import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtProperties;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootConfiguration
@@ -26,5 +28,10 @@ public class JwtConfiguration {
         return new JwtTokenUtils(
                 sduPassJwtProperties, localJwtProperties
         );
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
     }
 }

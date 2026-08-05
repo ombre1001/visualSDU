@@ -12,6 +12,11 @@ public enum BizCode {
     BAD_REQUEST(400, "请求错误", 400),
     INTERNAL_SERVER_ERROR(500, "服务器内部错误", 500),
 
+    // 认证授权业务码 10xxx
+    // 注册相关：100xx
+    REGISTRATION_PASSWORD_CONFIRM_FAILED(10000, "确认密码必须与原密码相同", 400),
+    REGISTRATION_SDUPASS_JWT_INVALID(10001, "注册所使用的sdupass JWT无效或已过期", 400),
+
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),
 
