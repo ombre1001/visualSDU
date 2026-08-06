@@ -7,6 +7,7 @@ import cn.sduonline.business.mapper.UserMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.infrastructure.jwt.JwtTokenUtils;
+import cn.sduonline.infrastructure.jwt.LocalJwtPayload;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassClient;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtPayload;
 import io.jsonwebtoken.JwtException;
@@ -28,8 +29,23 @@ public class AuthService {
         SduPassJwtPayload jwtPayload =
                 jwtTokenUtils.parseSduPassJwt(sduPassJwt);
 
+        User u = userMapper.selectByCasId(jwtPayload.casID());
 
-        return null;
+        if (u != null && u.getId() != null) {
+
+            var localJwtPayload = LocalJwtPayload.builder()
+                    .userId(u.getId())
+                    .role(u.getRole().getValue())
+                    .tokenVersion(u.getTokenVersion())
+                    .build();
+
+            return new AuthResponse(
+                    jwtTokenUtils.generateAccessToken(localJwtPayload),
+                    "敬请期待"
+            );
+        } else {
+            return register(new RegisterRequest(sduPassJwt));
+        }
     }
 
     private String defaultNickname(String casId) {
@@ -37,7 +53,7 @@ public class AuthService {
     }
 
     public AuthResponse register(RegisterRequest registerRequest) {
-        SduPassJwtPayload jwtPayload = null;
+        SduPassJwtPayload jwtPayload;
         try {
             jwtPayload =
                     jwtTokenUtils.parseSduPassJwt(registerRequest.sduPassJwt());
@@ -45,22 +61,22 @@ public class AuthService {
             throw new BizException(BizCode.REGISTRATION_SDUPASS_JWT_INVALID);
         }
 
-        String passwordRaw = registerRequest.password();
-        if (!registerRequest.confirmPassword().equals(passwordRaw)) {
-            throw new BizException(BizCode.REGISTRATION_PASSWORD_CONFIRM_FAILED);
-        }
-
-        String passwordHash = passwordEncoder.encode(passwordRaw);
-
         User user = User.builder()
-                .passwordHash(passwordHash)
                 .casId(jwtPayload.casID())
                 .name(jwtPayload.name())
                 .nickname(defaultNickname(jwtPayload.casID()))
                 .build();
         userMapper.insert(user);
 
-        Long userId = user.getId();
+        var localJwtPayload = LocalJwtPayload.builder()
+                .userId(user.getId())
+                .role(user.getRole().getValue())
+                .tokenVersion(user.getTokenVersion())
+                .build();
 
+        return new AuthResponse(
+                jwtTokenUtils.generateAccessToken(localJwtPayload),
+                "敬请期待"
+        );
     }
 }

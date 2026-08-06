@@ -35,4 +35,5 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Boolean deleted;
+    private Integer tokenVersion;
 }

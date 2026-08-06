@@ -14,6 +14,7 @@ public enum BizCode {
 
     // 认证授权业务码 10xxx
     // 注册相关：100xx
+    @Deprecated
     REGISTRATION_PASSWORD_CONFIRM_FAILED(10000, "确认密码必须与原密码相同", 400),
     REGISTRATION_SDUPASS_JWT_INVALID(10001, "注册所使用的sdupass JWT无效或已过期", 400),
 

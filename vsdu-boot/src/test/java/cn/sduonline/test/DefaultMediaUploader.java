@@ -9,7 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 
 @SpringBootTest
 public class DefaultMediaUploader {

@@ -4,6 +4,7 @@ import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtPayload;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,13 +13,18 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.spec.KeySpec;
+import java.time.Instant;
+import java.util.Date;
+
+import static cn.sduonline.infrastructure.jwt.LocalJwtPayload.ROLE_CLAIM_KEY;
+import static cn.sduonline.infrastructure.jwt.LocalJwtPayload.TOKEN_VERSION_CLAIM_KEY;
 
 @Slf4j
 public class JwtTokenUtils {
 
     private final LocalJwtProperties localJwtProperties;
     private final SecretKey sduPassSecretKey;
-//    private final SecretKey localSecretKey;
+    private final SecretKey localSecretKey;
 
     private final static String ALGO = "PBKDF2WithHmacSHA256";
 
@@ -40,6 +46,32 @@ public class JwtTokenUtils {
         this.sduPassSecretKey = Keys.hmacShaKeyFor(
                 factory.generateSecret(spec).getEncoded()
         );
+
+        this.localSecretKey = Keys.hmacShaKeyFor(
+                Decoders.BASE64.decode(localJwtProperties.localSecret())
+        );
+    }
+
+    public String generateAccessToken(LocalJwtPayload payload) {
+        Instant now = Instant.now();
+
+        return Jwts.builder()
+                .subject(payload.userId().toString())
+                .claim(ROLE_CLAIM_KEY, payload.role())
+                .claim(TOKEN_VERSION_CLAIM_KEY, payload.tokenVersion())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(localJwtProperties.accessTokenExpireSeconds())))
+                .signWith(localSecretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    public LocalJwtPayload parseAccessToken(String jwsToken) {
+        Claims claims = Jwts.parser().verifyWith(localSecretKey)
+                .build()
+                .parseSignedClaims(jwsToken)
+                .getPayload();
+
+        return LocalJwtPayload.fromClaims(claims);
     }
 
     public SduPassJwtPayload parseSduPassJwt(String sduPassJwt) {
