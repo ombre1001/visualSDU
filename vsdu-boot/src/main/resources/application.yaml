@@ -22,6 +22,9 @@ vsdu:
       salt: KOISHIKISHIKAWAIIKAWAIIKISSKISSLOVELY
       iteration-cound: 114514
       key-length: 256
+    local:
+      local-secret: ${JWT_SECRET}
+      access-token-expire-seconds: 3600
 
 cloudflare:
   r2:

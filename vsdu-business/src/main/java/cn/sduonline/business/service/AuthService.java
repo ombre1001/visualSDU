@@ -1,6 +1,7 @@
 package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.dto.RegisterRequest;
+import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.vo.AuthResponse;
 import cn.sduonline.business.mapper.UserMapper;
@@ -70,8 +71,8 @@ public class AuthService {
 
         var localJwtPayload = LocalJwtPayload.builder()
                 .userId(user.getId())
-                .role(user.getRole().getValue())
-                .tokenVersion(user.getTokenVersion())
+                .role(UserRole.USER.getValue())
+                .tokenVersion(0)
                 .build();
 
         return new AuthResponse(

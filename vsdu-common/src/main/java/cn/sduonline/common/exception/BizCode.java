@@ -17,6 +17,11 @@ public enum BizCode {
     @Deprecated
     REGISTRATION_PASSWORD_CONFIRM_FAILED(10000, "确认密码必须与原密码相同", 400),
     REGISTRATION_SDUPASS_JWT_INVALID(10001, "注册所使用的sdupass JWT无效或已过期", 400),
+    // 鉴权相关：101xx
+    UNAUTHORIZED(10100, "未登录或认证失败", 401),
+    AUTH_USER_NOT_FOUND(10101, "用户不存在", 404),
+    AUTH_ACCESS_TOKEN_EXPIRED(10102, "access token 已过期", 401),
+    AUTH_ACCESS_TOKEN_INVALID(10103, "access token 无效", 401),
 
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),

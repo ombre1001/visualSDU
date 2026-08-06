@@ -2,6 +2,8 @@ package cn.sduonline.business.data.po;
 
 import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.enums.UserStatus;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 @TableName("user")
 public class User {
 
+    @TableId(type = IdType.AUTO)
     private Long id;
     private String phone;
     private String passwordHash;

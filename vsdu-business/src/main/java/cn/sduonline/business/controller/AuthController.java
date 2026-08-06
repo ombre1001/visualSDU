@@ -17,11 +17,25 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /**
+     * Sdu Pass回调接口
+     * <p>
+     * 学生完成统一认证登录后，获取并解析sdu pass token，签发access token和refresh token并响应。
+     * 首次访问vsdu的学生，将再解析sdu pass token后自动创建账户。
+     * <p>
+     * 测试环境下浏览器访问<a href="https://i.sdu.edu.cn/pass-api/login/page?forward=http%3A%2F%2Flocalhost%3A8080%2Fauth%2Fsdupass-login">...</a>即可
+     * @param code sdu pass回调时携带的，用于获取sdu pass token的code凭证
+     * @return 包含access token和refresh token
+     */
     @GetMapping("/sdupass-login")
     public Result<AuthResponse> sdupassLogin(@RequestParam String code) {
         return Result.success(authService.sdupassLogin(code));
     }
 
+    /**
+     * 账号注册接口 目前不对外开放
+     * 只有/auth/sdupass-login可以创建账户
+     */
 //    @PostMapping("/register")
     public Result<AuthResponse> register(RegisterRequest registerRequest) {
         return Result.success(authService.register(registerRequest));

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Objects;
+
 @Getter
 @RequiredArgsConstructor
 public enum UserRole implements IEnum<Integer> {
@@ -13,8 +15,10 @@ public enum UserRole implements IEnum<Integer> {
 
     private final Integer value;
 
-    @Override
-    public Integer getValue() {
-        return value;
+    public static UserRole valueOf(Integer code) {
+        for (UserRole role : values()) {
+            if (Objects.equals(role.value, code)) return role;
+        }
+        throw new IllegalArgumentException("无效的UserRole Code");
     }
 }

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Objects;
+
 @Getter
 @RequiredArgsConstructor
 public enum UserStatus implements IEnum<Integer> {
@@ -14,8 +16,10 @@ public enum UserStatus implements IEnum<Integer> {
 
     private final Integer value;
 
-    @Override
-    public Integer getValue() {
-        return value;
+    public static UserStatus valueOf(Integer code) {
+        for (UserStatus status : values()) {
+            if (Objects.equals(status.value, code)) return status;
+        }
+        throw new IllegalArgumentException("无效的UserStatus Code");
     }
 }
