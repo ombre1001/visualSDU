@@ -22,6 +22,7 @@ public enum BizCode {
     AUTH_USER_NOT_FOUND(10101, "用户不存在", 404),
     AUTH_ACCESS_TOKEN_EXPIRED(10102, "access token 已过期", 401),
     AUTH_ACCESS_TOKEN_INVALID(10103, "access token 无效", 401),
+    ADMIN_REQUIRED(10104, "该接口仅管理员可访问", 403),
 
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),
@@ -32,11 +33,26 @@ public enum BizCode {
     LOCATION_NOT_FOUND(12200, "地点不存在或已停用", 404),
     LOCATION_NOT_BELONG_TO_CAMPUS(12201, "地点不属于指定校区", 400),
 
-    MAP_QUERY_SCOPE_INVALID(
-            12300,
-            "地图点位查询必须且只能指定 cityId 或 campusId",
-            400
-    )
+    MAP_QUERY_SCOPE_INVALID(12300, "地图点位查询必须且只能指定 cityId 或 campusId", 400),
+
+    // 媒体浏览与互动：13xxx
+    MEDIA_NOT_FOUND(13000, "媒体不存在或不可见", 404),
+    MEDIA_ALREADY_LIKED(13001, "已经点赞过该媒体", 409),
+    MEDIA_NOT_LIKED(13002, "尚未点赞该媒体", 409),
+    FAVORITE_FOLDER_NOT_FOUND(13100, "收藏夹不存在或无权访问", 404),
+    MEDIA_ALREADY_FAVORITED(13101, "该媒体已在收藏夹中", 409),
+    MEDIA_NOT_FAVORITED(13102, "尚未收藏该媒体", 409),
+    MEDIA_DOWNLOAD_FORBIDDEN(13200, "当前账号无原图下载权限", 403),
+    TIME_COMPARISON_NOT_FOUND(13300, "时光对比不存在或不可见", 404),
+
+    // 用户投稿：14xxx
+    FORMAL_USER_REQUIRED(14000, "该功能仅对统一认证正式用户开放", 403),
+    SUBMISSION_UPLOAD_FORBIDDEN(14001, "当前账号无投稿权限", 403),
+    SUBMISSION_NOT_FOUND(14002, "稿件不存在或无权访问", 404),
+    SUBMISSION_STATUS_INVALID(14003, "当前稿件状态不允许执行该操作", 409),
+    SUBMISSION_FILE_REQUIRED(14004, "请至少上传一张图片", 400),
+    SUBMISSION_FILE_COUNT_EXCEEDED(14005, "单次投稿最多上传9张图片", 400),
+    SUBMISSION_COPYRIGHT_UNCONFIRMED(14006, "请先确认原创与版权声明", 400)
 
 
 

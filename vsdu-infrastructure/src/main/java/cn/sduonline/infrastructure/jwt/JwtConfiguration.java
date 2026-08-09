@@ -2,16 +2,17 @@ package cn.sduonline.infrastructure.jwt;
 
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassClient;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtProperties;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import tools.jackson.databind.ObjectMapper;
 
-@SpringBootConfiguration
+@Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({
-        LocalJwtProperties.class, SduPassJwtProperties.class
+        LocalJwtProperties.class,
+        SduPassJwtProperties.class
 })
 public class JwtConfiguration {
 
@@ -26,7 +27,8 @@ public class JwtConfiguration {
             LocalJwtProperties localJwtProperties
     ) throws Exception {
         return new JwtTokenUtils(
-                sduPassJwtProperties, localJwtProperties
+                sduPassJwtProperties,
+                localJwtProperties
         );
     }
 
