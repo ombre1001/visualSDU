@@ -2,6 +2,7 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.dto.RegisterRequest;
 import cn.sduonline.business.data.vo.AuthResponse;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.AuthService;
 import cn.sduonline.common.result.Result;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class AuthController {
      * @param code sdu pass回调时携带的，用于获取sdu pass token的code凭证
      * @return 包含access token和refresh token
      */
+    @PublicApi
     @GetMapping("/sdupass-login")
     public Result<AuthResponse> sdupassLogin(@RequestParam String code) {
         return Result.success(authService.sdupassLogin(code));

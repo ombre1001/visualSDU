@@ -112,7 +112,7 @@ public class MediaService {
 
     public List<MediaSummaryVO> related(Long mediaId, int size) {
         Media source = requireVisible(mediaId);
-        int safeSize = Math.min(Math.max(size, 1), 30);
+        int safeSize = Math.clamp(size, 1, 30);
         return mediaMapper.selectList(new LambdaQueryWrapper<Media>()
                         .eq(Media::getStatus, VISIBLE)
                         .ne(Media::getId, mediaId)
@@ -241,7 +241,7 @@ public class MediaService {
 
     private String firstTag(String tags) {
         List<String> decoded = TagCodec.decode(tags);
-        return decoded.isEmpty() ? tags : decoded.get(0);
+        return decoded.isEmpty() ? tags : decoded.getFirst();
     }
 
     private long value(Long count) {

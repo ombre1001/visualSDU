@@ -2,7 +2,7 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.dto.UpdateSubmissionReviewSettingRequest;
 import cn.sduonline.business.data.vo.SubmissionReviewSettingVO;
-import cn.sduonline.business.security.context.CurrentUser;
+import cn.sduonline.business.security.anno.AdminApi;
 import cn.sduonline.business.service.SubmissionReviewSettingService;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;
@@ -18,15 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminSubmissionReviewSettingController {
     private final SubmissionReviewSettingService settingService;
 
+    @AdminApi
     @PutMapping
     public Result<SubmissionReviewSettingVO> update(
             @Valid @RequestBody UpdateSubmissionReviewSettingRequest request
     ) {
-        SubmissionReviewSettingVO result = settingService.update(
-                CurrentUser.id(),
-                CurrentUser.role(),
-                request
-        );
+        SubmissionReviewSettingVO result = settingService.update(request);
         String message = result.reviewEnabled() ? "稿件审核已开启" : "稿件审核已关闭";
         return Result.success(result, message);
     }

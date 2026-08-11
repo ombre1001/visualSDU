@@ -24,7 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Component
-public class AuthenticateFilter extends OncePerRequestFilter {
+public class AuthenticationFilter extends OncePerRequestFilter {
 
     private static final String ACCESS_TOKEN_HEADER = "token";
 
@@ -32,7 +32,7 @@ public class AuthenticateFilter extends OncePerRequestFilter {
     private final UserMapper userMapper;
     private final HandlerExceptionResolver exceptionResolver;
 
-    public AuthenticateFilter(
+    public AuthenticationFilter(
             JwtTokenUtils jwtTokenUtils,
             UserMapper userMapper,
             @Qualifier("handlerExceptionResolver")

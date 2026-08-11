@@ -1,6 +1,7 @@
 package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.vo.LocationDetailVO;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.LocationService;
 import cn.sduonline.common.result.Result;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class LocationController {
     /**
      * 地点详情。
      */
+    @PublicApi
     @GetMapping("/{locationId}")
     public Result<LocationDetailVO> getLocationDetail(
             @PathVariable Long locationId

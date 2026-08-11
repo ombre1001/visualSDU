@@ -5,6 +5,7 @@ import cn.sduonline.business.data.vo.MediaDetailVO;
 import cn.sduonline.business.data.vo.MediaDownloadVO;
 import cn.sduonline.business.data.vo.MediaInteractionVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.business.service.MediaService;
 import cn.sduonline.common.result.Result;
@@ -20,11 +21,13 @@ import java.util.List;
 public class MediaController {
     private final MediaService mediaService;
 
+    @PublicApi
     @GetMapping("/{mediaId}")
     public Result<MediaDetailVO> detail(@PathVariable Long mediaId) {
         return Result.success(mediaService.detail(mediaId, optionalUserId()));
     }
 
+    @PublicApi
     @PostMapping("/{mediaId}/views")
     public Result<MediaInteractionVO> recordView(@PathVariable Long mediaId) {
         return Result.success(mediaService.recordView(mediaId, optionalUserId()));
@@ -59,6 +62,7 @@ public class MediaController {
         return Result.success(mediaService.requestDownload(CurrentUser.id(), mediaId), "下载地址已生成");
     }
 
+    @PublicApi
     @GetMapping("/{mediaId}/related")
     public Result<List<MediaSummaryVO>> related(
             @PathVariable Long mediaId,

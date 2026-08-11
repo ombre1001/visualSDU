@@ -2,6 +2,7 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.vo.CampusListVO;
 import cn.sduonline.business.data.vo.CityVO;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.CampusService;
 import cn.sduonline.business.service.CityService;
 import cn.sduonline.common.result.Result;
@@ -24,6 +25,7 @@ public class CityController {
     /**
      * 城市列表。
      */
+    @PublicApi
     @GetMapping
     public Result<List<CityVO>> listCities() {
         return Result.success(
@@ -35,6 +37,7 @@ public class CityController {
     /**
      * 城市下校区列表。
      */
+    @PublicApi
     @GetMapping("/{cityId}/campuses")
     public Result<List<CampusListVO>> listCampuses(
             @PathVariable Long cityId

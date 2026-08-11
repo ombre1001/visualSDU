@@ -2,6 +2,7 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.vo.CampusDetailVO;
 import cn.sduonline.business.data.vo.LocationListVO;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.CampusService;
 import cn.sduonline.business.service.LocationService;
 import cn.sduonline.common.result.Result;
@@ -21,6 +22,7 @@ public class CampusController {
     /**
      * 校区详情。
      */
+    @PublicApi
     @GetMapping("/{campusId}")
     public Result<CampusDetailVO> getCampusDetail(
             @PathVariable Long campusId
@@ -36,6 +38,7 @@ public class CampusController {
      * <p>
      * categoryCode可以不传。
      */
+    @PublicApi
     @GetMapping("/{campusId}/locations")
     public Result<List<LocationListVO>> listLocations(
             @PathVariable Long campusId,

@@ -1,4 +1,4 @@
 package cn.sduonline.business.security.anno;
 
-public @interface PublicApi {
+public @interface AdminApi {
 }
