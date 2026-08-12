@@ -1,15 +1,14 @@
 package cn.sduonline.business.controller;
 
+import cn.sduonline.business.data.dto.RefreshTokenRequest;
 import cn.sduonline.business.data.dto.RegisterRequest;
 import cn.sduonline.business.data.vo.AuthResponse;
 import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.AuthService;
 import cn.sduonline.common.result.Result;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -32,6 +31,18 @@ public class AuthController {
     @GetMapping("/sdupass-login")
     public Result<AuthResponse> sdupassLogin(@RequestParam String code) {
         return Result.success(authService.sdupassLogin(code));
+    }
+
+    @PublicApi
+    @PostMapping("/refresh")
+    public Result<AuthResponse> refresh(@RequestBody @Validated RefreshTokenRequest refreshTokenRequest) {
+        return Result.success(authService.refresh(refreshTokenRequest));
+    }
+
+    @DeleteMapping("/logout")
+    public Result<Void> logout(@RequestBody @Validated RefreshTokenRequest refreshTokenRequest) {
+        authService.logout(refreshTokenRequest);
+        return Result.ok();
     }
 
     /**

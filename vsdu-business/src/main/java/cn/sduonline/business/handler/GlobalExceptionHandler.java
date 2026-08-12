@@ -13,6 +13,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -92,6 +93,22 @@ public class GlobalExceptionHandler {
                 .status(BizCode.BAD_REQUEST.getHttpStatusCode())
                 .body(
                         Result.error(BizCode.BAD_REQUEST, "请求体格式错误或不可解析")
+                );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public <T> ResponseEntity<Result<T>> handleMaxUploadSizeExceededException(
+            HttpServletRequest request
+    ) {
+        log.warn(
+                "上传超限 | 路径：{} {}",
+                request.getMethod(),
+                request.getRequestURI()
+        );
+        return ResponseEntity
+                .status(BizCode.UPLOAD_SIZE_TOO_LARGE.getHttpStatusCode())
+                .body(
+                        Result.error(BizCode.UPLOAD_SIZE_TOO_LARGE)
                 );
     }
 

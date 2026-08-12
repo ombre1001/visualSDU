@@ -9,9 +9,9 @@ import cn.sduonline.business.data.vo.SubmissionSummaryVO;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.business.service.SubmissionService;
 import cn.sduonline.common.result.Result;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,7 +22,7 @@ public class SubmissionController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<SubmissionDetailVO> create(
-            @Valid @ModelAttribute CreateSubmissionRequest request
+            @Validated @ModelAttribute CreateSubmissionRequest request
     ) {
         SubmissionDetailVO result = submissionService.create(CurrentUser.id(), request);
         String message = result.status() == SubmissionStatus.APPROVED
@@ -48,7 +48,7 @@ public class SubmissionController {
     @PutMapping(value = "/{submissionId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<SubmissionDetailVO> update(
             @PathVariable Long submissionId,
-            @Valid @ModelAttribute UpdateSubmissionRequest request
+            @Validated @ModelAttribute UpdateSubmissionRequest request
     ) {
         return Result.success(
                 submissionService.update(CurrentUser.id(), submissionId, request),

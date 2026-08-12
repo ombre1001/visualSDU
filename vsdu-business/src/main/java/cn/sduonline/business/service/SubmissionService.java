@@ -54,15 +54,16 @@ public class SubmissionService {
         List<MultipartFile> files = normalizedFiles(request.getFiles());
         requireFileCount(files, 0);
 
-        Submission submission = new Submission();
-        submission.setUserId(userId);
-        submission.setLocationId(location.getId());
-        submission.setDescription(request.getDescription());
-        submission.setShotAt(request.getShotAt());
-        submission.setTags(TagCodec.encode(request.getTags()));
-        submission.setStatus(SubmissionStatus.PENDING);
-        submission.setSubmittedAt(LocalDateTime.now());
-        submission.setDeleted(false);
+        Submission submission = Submission.builder()
+                .userId(userId)
+                .locationId(location.getId())
+                .description(request.getDescription())
+                .shotAt(request.getShotAt())
+                .tags(TagCodec.encode(request.getTags()))
+                .status(SubmissionStatus.PENDING)
+                .submittedAt(LocalDateTime.now())
+                .deleted(false)
+                .build();
         submissionMapper.insert(submission);
 
         List<String> newKeys = uploadAndInsertAssets(submission.getId(), userId, files, 0);
@@ -79,7 +80,7 @@ public class SubmissionService {
     ) {
         requireFormalUser(userId);
         long safePage = Math.max(page, 1);
-        long safeSize = Math.min(Math.max(size, 1), 50);
+        long safeSize = Math.clamp(size, 1, 50);
         Page<Submission> result = submissionMapper.selectPage(
                 new Page<>(safePage, safeSize),
                 new LambdaQueryWrapper<Submission>()
@@ -126,7 +127,7 @@ public class SubmissionService {
         if (!files.isEmpty()) requireFileCount(files, retainedCount);
         if (replace && files.isEmpty()) throw new BizException(BizCode.SUBMISSION_FILE_REQUIRED);
 
-        List<String> newKeys = List.of();
+        List<String> newKeys;
         if (!files.isEmpty()) {
             if (replace) {
                 assetMapper.delete(new LambdaQueryWrapper<SubmissionAsset>()
@@ -268,12 +269,12 @@ public class SubmissionService {
             return List.copyOf(uploadedKeys);
         } catch (BadFileException exception) {
             uploadedKeys.forEach(fileStorage::deleteQuietly);
-            String message = switch (exception.getErrorCode()) {
-                case FILE_EMPTY -> "上传图片不能为空";
-                case FILE_TOO_LARGE -> "单张图片不能超过20MB";
-                case FILE_TYPE_NOT_SUPPORT -> "仅支持JPEG、PNG和WEBP图片";
+            BizCode code = switch (exception.getErrorCode()) {
+                case FILE_EMPTY -> BizCode.SUBMISSION_FILE_EMPTY;
+                case FILE_TOO_LARGE -> BizCode.SUBMISSION_FILE_TOO_LARGE;
+                case FILE_TYPE_NOT_SUPPORT -> BizCode.SUBMISSION_FILE_TYPE_NOT_SUPPORT;
             };
-            throw new BizException(BizCode.BAD_REQUEST, message);
+            throw new BizException(code);
         } catch (RuntimeException exception) {
             uploadedKeys.forEach(fileStorage::deleteQuietly);
             throw exception;
@@ -369,7 +370,7 @@ public class SubmissionService {
     private SubmissionSummaryVO buildSummary(Submission submission) {
         Location location = requireLocationIncludingDisabled(submission.getLocationId());
         List<SubmissionAsset> assets = listAssets(submission.getId());
-        String coverUrl = assets.isEmpty() ? null : fileStorage.getUrl(assets.get(0).getObjectKey());
+        String coverUrl = assets.isEmpty() ? null : fileStorage.getUrl(assets.getFirst().getObjectKey());
         return new SubmissionSummaryVO(
                 submission.getId(), submission.getLocationId(), location.getName(), submission.getDescription(),
                 submission.getShotAt(), submission.getStatus(), submission.getReviewReason(), assets.size(),

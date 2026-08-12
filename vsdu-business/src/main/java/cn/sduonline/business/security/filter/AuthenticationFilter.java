@@ -6,7 +6,8 @@ import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.infrastructure.jwt.JwtTokenUtils;
-import cn.sduonline.infrastructure.jwt.LocalJwtPayload;
+import cn.sduonline.infrastructure.jwt.local.LocalJwtPayload;
+import cn.sduonline.infrastructure.jwt.local.TokenRedisOperator;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -29,23 +30,30 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     private static final String ACCESS_TOKEN_HEADER = "token";
 
     private final JwtTokenUtils jwtTokenUtils;
+    private final TokenRedisOperator tokenRedisOperator;
     private final UserMapper userMapper;
     private final HandlerExceptionResolver exceptionResolver;
 
     public AuthenticationFilter(
             JwtTokenUtils jwtTokenUtils,
+            TokenRedisOperator tokenRedisOperator,
             UserMapper userMapper,
             @Qualifier("handlerExceptionResolver")
             HandlerExceptionResolver exceptionResolver
     ) {
         this.jwtTokenUtils = jwtTokenUtils;
+        this.tokenRedisOperator = tokenRedisOperator;
         this.userMapper = userMapper;
         this.exceptionResolver = exceptionResolver;
     }
 
     private Integer loadTokenVersion(Long userId) {
-        return Optional.ofNullable(userMapper.selectTokenVersionById(userId))
-                .orElseThrow(() -> new BizException(BizCode.AUTH_USER_NOT_FOUND));
+        return tokenRedisOperator.getTokenVersion(userId).orElseGet(() -> {
+            Integer tv = Optional.ofNullable(userMapper.selectTokenVersionById(userId))
+                    .orElseThrow(() -> new BizException(BizCode.AUTH_USER_NOT_FOUND));
+            tokenRedisOperator.storeTokenVersion(userId, tv);
+            return tv;
+        });
     }
 
     @Override

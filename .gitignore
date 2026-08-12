@@ -1,0 +1,29 @@
+# Maven 构建产物
+**/target/
+
+# IntelliJ IDEA 本地状态
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/queries/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/.cache/
+
+# Java / IDE 构建产物
+*.class
+*.log
+*.tmp
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 本地环境变量
+.env
+.env.*
+!.env.example
+
+# 文档
+docs/**
+AGENTS.md

@@ -8,10 +8,15 @@
     <update id="updateStatusAndIncreaseTokenVersion">
         UPDATE `user`
         SET status = #{toStatus},
-        token_version = IFNULL(token_version, 0) + 1,
-        updated_at = CURRENT_TIMESTAMP
+            token_version = IFNULL(token_version, 0) + 1
         WHERE id = #{userId}
         AND status = #{fromStatus}
+    </update>
+
+    <update id="increaseTokenVersion">
+        update user
+        set token_version = IFNULL(token_version, 0) + 1
+        where id = #{userId}
     </update>
 
     <select id="existsCasId" resultType="boolean">
@@ -33,7 +38,6 @@
     <update id="updatePhoneById">
         update user set phone = #{phone} where id = #{userId}
     </update>
-
 
 
 </mapper>

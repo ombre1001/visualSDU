@@ -1,7 +1,10 @@
 package cn.sduonline.infrastructure.jwt;
 
+import cn.sduonline.infrastructure.jwt.local.LocalJwtProperties;
+import cn.sduonline.infrastructure.jwt.local.TokenRedisOperator;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassClient;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtProperties;
+import cn.sduonline.infrastructure.redis.RedisClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,6 +32,16 @@ public class JwtConfiguration {
         return new JwtTokenUtils(
                 sduPassJwtProperties,
                 localJwtProperties
+        );
+    }
+
+    @Bean
+    public TokenRedisOperator tokenRedisOperator(
+            RedisClient redisClient,
+            LocalJwtProperties localJwtProperties
+    ) {
+        return new TokenRedisOperator(
+                redisClient, localJwtProperties
         );
     }
 

@@ -23,6 +23,8 @@ public enum BizCode {
     AUTH_ACCESS_TOKEN_EXPIRED(10102, "access token 已过期", 401),
     AUTH_ACCESS_TOKEN_INVALID(10103, "access token 无效", 401),
     ADMIN_REQUIRED(10104, "该接口仅管理员可访问", 403),
+    AUTH_REFRESH_TOKEN_INVALID(10105, "refresh token 无效", 401),
+    SDUPASS_LOGIN_FAILED(10106, "sdupass 验证失败", 400),
 
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),
@@ -52,7 +54,13 @@ public enum BizCode {
     SUBMISSION_STATUS_INVALID(14003, "当前稿件状态不允许执行该操作", 409),
     SUBMISSION_FILE_REQUIRED(14004, "请至少上传一张图片", 400),
     SUBMISSION_FILE_COUNT_EXCEEDED(14005, "单次投稿最多上传9张图片", 400),
-    SUBMISSION_COPYRIGHT_UNCONFIRMED(14006, "请先确认原创与版权声明", 400)
+    SUBMISSION_COPYRIGHT_UNCONFIRMED(14006, "请先确认原创与版权声明", 400),
+    SUBMISSION_FILE_EMPTY(14007, "上传照片为空", 400),
+    SUBMISSION_FILE_TOO_LARGE(14008, "提交文件过大", 400),
+    SUBMISSION_FILE_TYPE_NOT_SUPPORT(14009, "上传文件类型不支持", 400),
+
+    // 其它：19xxx
+    UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 
 
 

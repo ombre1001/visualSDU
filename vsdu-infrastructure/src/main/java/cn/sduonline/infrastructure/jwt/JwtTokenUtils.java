@@ -1,5 +1,7 @@
 package cn.sduonline.infrastructure.jwt;
 
+import cn.sduonline.infrastructure.jwt.local.LocalJwtPayload;
+import cn.sduonline.infrastructure.jwt.local.LocalJwtProperties;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtPayload;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtProperties;
 import io.jsonwebtoken.Claims;
@@ -12,12 +14,14 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 
-import static cn.sduonline.infrastructure.jwt.LocalJwtPayload.ROLE_CLAIM_KEY;
-import static cn.sduonline.infrastructure.jwt.LocalJwtPayload.TOKEN_VERSION_CLAIM_KEY;
+import static cn.sduonline.infrastructure.jwt.local.LocalJwtPayload.ROLE_CLAIM_KEY;
+import static cn.sduonline.infrastructure.jwt.local.LocalJwtPayload.TOKEN_VERSION_CLAIM_KEY;
 
 @Slf4j
 public class JwtTokenUtils {
@@ -27,6 +31,9 @@ public class JwtTokenUtils {
     private final SecretKey localSecretKey;
 
     private final static String ALGO = "PBKDF2WithHmacSHA256";
+
+    private final SecureRandom secureRandom = new SecureRandom();
+    private static final int DEFAULT_TOKEN_BYTES = 32;
 
     public JwtTokenUtils(
             SduPassJwtProperties properties,
@@ -83,5 +90,17 @@ public class JwtTokenUtils {
         return SduPassJwtPayload.fromClaims(claims);
     }
 
+    public String generateRefreshToken() {
+        return generateRefreshToken(DEFAULT_TOKEN_BYTES);
+    }
+
+    public String generateRefreshToken(int byteLength) {
+        byte[] bytes = new byte[byteLength];
+        secureRandom.nextBytes(bytes);
+
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(bytes);
+    }
 
 }
