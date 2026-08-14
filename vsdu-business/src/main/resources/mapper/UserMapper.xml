@@ -19,6 +19,15 @@
         where id = #{userId}
     </update>
 
+    <update id="userUnfrozen">
+        update user set
+            status = 1,
+            frozen_until = NULL,
+            frozen_reason = NULL
+        where id = #{userId}
+    </update>
+
+
     <select id="existsCasId" resultType="boolean">
         select exists (
         select 1 from user where cas_id = #{casId}
@@ -38,6 +47,7 @@
     <update id="updatePhoneById">
         update user set phone = #{phone} where id = #{userId}
     </update>
+
 
 
 </mapper>

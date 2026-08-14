@@ -22,6 +22,8 @@ public interface UserMapper extends BaseMapper<User> {
             @Param("toStatus") Integer toStatus
     );
 
+    void userUnfrozen(Long userId);
+
     User selectByCasId(String casId);
 
     boolean existsCasId(String casId);

@@ -25,6 +25,8 @@ public enum BizCode {
     ADMIN_REQUIRED(10104, "该接口仅管理员可访问", 403),
     AUTH_REFRESH_TOKEN_INVALID(10105, "refresh token 无效", 401),
     SDUPASS_LOGIN_FAILED(10106, "sdupass 验证失败", 400),
+    FROZEN_USER(10107, "账户已被冻结或停用", 403),
+
 
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),

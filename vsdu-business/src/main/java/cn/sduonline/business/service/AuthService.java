@@ -3,6 +3,7 @@ package cn.sduonline.business.service;
 import cn.sduonline.business.data.dto.RefreshTokenRequest;
 import cn.sduonline.business.data.dto.RegisterRequest;
 import cn.sduonline.business.data.enums.UserRole;
+import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.vo.AuthResponse;
 import cn.sduonline.business.mapper.UserMapper;
@@ -17,7 +18,9 @@ import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -30,6 +33,19 @@ public class AuthService {
     private final TokenRedisOperator tokenRedisOperator;
     private final PasswordEncoder passwordEncoder;
 
+    private void frozenUserCheck(User u) {
+        switch (u.getStatus()) {
+            case FROZEN :
+                if (u.getFrozenUntil() == null || LocalDateTime.now().isAfter(u.getFrozenUntil())) {
+                    userMapper.userUnfrozen(u.getId());
+                    break;
+                }
+            case DISABLED :
+                throw new BizException(BizCode.FROZEN_USER);
+        }
+    }
+
+    @Transactional
     public AuthResponse sdupassLogin(String code) {
 
         String sduPassJwt;
@@ -46,6 +62,8 @@ public class AuthService {
         User u = userMapper.selectByCasId(jwtPayload.casID());
 
         if (u != null && u.getId() != null) {
+
+            frozenUserCheck(u);
 
             var localJwtPayload = LocalJwtPayload.builder()
                     .userId(u.getId())
@@ -113,6 +131,8 @@ public class AuthService {
         User u = Optional.ofNullable(
                 userMapper.selectById(userId)
         ).orElseThrow(() -> new BizException(BizCode.AUTH_USER_NOT_FOUND));
+
+        frozenUserCheck(u);
 
         var localJwtPayload = LocalJwtPayload.builder()
                 .userId(userId)
