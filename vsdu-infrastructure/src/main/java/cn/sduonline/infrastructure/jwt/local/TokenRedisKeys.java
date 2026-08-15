@@ -5,17 +5,24 @@ import cn.sduonline.infrastructure.redis.RedisKeys;
 public class TokenRedisKeys extends RedisKeys {
 
     /**
-     * db:auth:token-version:{userId}
+     * vsdu:auth:tv:{userId}
      */
     public static String tokenVersionKey(Long userId) {
-        return build("auth", "token-version", userId.toString());
+        return build("auth", "tv", userId.toString());
     }
 
     /**
-     * db:auth:refresh:{refreshTokenHash}
+     * vsdu:auth:rt:{refreshTokenHash}
      */
     public static String refreshTokenKey(String refreshTokenHash) {
-        return build("auth", "refresh", refreshTokenHash);
+        return build("auth", "rt", refreshTokenHash);
+    }
+
+    /**
+     * vsdu:auth:rt-set:{userId}
+     */
+    public static String userRefreshTokenSetKey(Long userId) {
+        return build("auth", "rt-set", userId.toString());
     }
 
 }

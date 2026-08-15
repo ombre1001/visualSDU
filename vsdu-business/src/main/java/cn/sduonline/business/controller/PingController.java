@@ -1,6 +1,8 @@
 package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.enums.UserRole;
+import cn.sduonline.business.security.anno.AdminApi;
+import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.common.result.Result;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,9 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ping")
 public class PingController {
 
+    @PublicApi
     @GetMapping("/public")
     public Result<Void> publicPing() {
-        return Result.success(null, "public ping successfully");
+        return Result.success(null, "public ping successfully"
+                + (CurrentUser.isLogin() ? ", No. " + CurrentUser.id() : "")
+        );
     }
 
     @GetMapping("/auth")
@@ -23,6 +28,7 @@ public class PingController {
                 + CurrentUser.id() + " !");
     }
 
+    @AdminApi
     @GetMapping("/admin")
     public Result<Void> adminPing() {
         return Result.success(null, "admin ping successfully. Welcome, ADMIN " + CurrentUser.id() + " !");

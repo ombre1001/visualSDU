@@ -3,10 +3,10 @@ package cn.sduonline.business.service;
 import cn.sduonline.business.data.dto.RefreshTokenRequest;
 import cn.sduonline.business.data.dto.RegisterRequest;
 import cn.sduonline.business.data.enums.UserRole;
-import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.vo.AuthResponse;
 import cn.sduonline.business.mapper.UserMapper;
+import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.infrastructure.jwt.JwtTokenUtils;
@@ -72,7 +72,9 @@ public class AuthService {
                     .build();
 
             String refreshToken = jwtTokenUtils.generateRefreshToken();
-            tokenRedisOperator.storeRefreshToken(u.getId(), refreshToken);
+            if (
+                    !tokenRedisOperator.storeRefreshToken(u.getId(), refreshToken)
+            ) throw new BizException(BizCode.INTERNAL_SERVER_ERROR, "登录失败，请稍后再试");
 
             userMapper.loginRecord(u.getId());
 
@@ -114,7 +116,9 @@ public class AuthService {
                 .build();
 
         String refreshToken = jwtTokenUtils.generateRefreshToken();
-        tokenRedisOperator.storeRefreshToken(user.getId(), refreshToken);
+        if (
+                !tokenRedisOperator.storeRefreshToken(user.getId(), refreshToken)
+        ) throw new BizException(BizCode.INTERNAL_SERVER_ERROR, "注册失败，请稍后再试");
 
         return new AuthResponse(
                 jwtTokenUtils.generateAccessToken(localJwtPayload),
@@ -124,36 +128,38 @@ public class AuthService {
 
     public AuthResponse refresh(RefreshTokenRequest refreshTokenRequest) {
 
-        Long userId = Optional.ofNullable(
-                tokenRedisOperator.consumeRefreshToken(refreshTokenRequest.refreshToken())
-        ).orElseThrow(() -> new BizException(BizCode.AUTH_REFRESH_TOKEN_INVALID));
-
+        String oldRefreshToken = refreshTokenRequest.refreshToken();
         User u = Optional.ofNullable(
-                userMapper.selectById(userId)
-        ).orElseThrow(() -> new BizException(BizCode.AUTH_USER_NOT_FOUND));
+                tokenRedisOperator.getRefreshTokenOwnerId(oldRefreshToken)
+        )
+                .map(userMapper::selectById)
+                .orElseThrow(() -> new BizException(BizCode.AUTH_REFRESH_TOKEN_INVALID));
 
         frozenUserCheck(u);
 
+        String newRefreshToken = jwtTokenUtils.generateRefreshToken();
+        if (!tokenRedisOperator.rotateRefreshToken(
+                u.getId(), oldRefreshToken, newRefreshToken
+        )) throw new BizException(BizCode.AUTH_TOKEN_ROTATE_FAIL);
+
         var localJwtPayload = LocalJwtPayload.builder()
-                .userId(userId)
+                .userId(u.getId())
                 .role(u.getRole().getValue())
                 .tokenVersion(u.getTokenVersion())
                 .build();
-
         String accessToken = jwtTokenUtils.generateAccessToken(localJwtPayload);
-        String refreshToken = jwtTokenUtils.generateRefreshToken();
-        tokenRedisOperator.storeRefreshToken(userId, refreshToken);
 
-        return new AuthResponse(accessToken, refreshToken);
+        return new AuthResponse(accessToken, newRefreshToken);
     }
 
     public void logout(RefreshTokenRequest refreshTokenRequest) {
 
-        Long userId = tokenRedisOperator.consumeRefreshToken(refreshTokenRequest.refreshToken());
-        if (userId == null) return;
+        String refreshToken = refreshTokenRequest.refreshToken();
+        Long userId = CurrentUser.id();
 
-        userMapper.increaseTokenVersion(userId);
-
-        tokenRedisOperator.deleteTokenVersionCache(userId);
+        if (tokenRedisOperator.deleteRefreshToken(userId, refreshToken)) {
+            userMapper.increaseTokenVersion(userId);
+            tokenRedisOperator.deleteTokenVersionCache(userId);
+        }
     }
 }

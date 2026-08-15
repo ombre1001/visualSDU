@@ -3,6 +3,7 @@ package cn.sduonline.infrastructure.redis;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -241,6 +242,16 @@ public class RedisClient {
      */
     public Set<String> smembers(String key) {
         return redis.opsForSet().members(key);
+    }
+
+    /* ------------ 通用Lua脚本执行 ------------ */
+
+    public <T> T execute(
+            RedisScript<T> script,
+            List<String> keys,
+            String... args
+    ) {
+        return redis.execute(script, keys, (Object[]) args);
     }
 
 }

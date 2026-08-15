@@ -31,9 +31,9 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
         boolean isPublicApi = handlerMethod.getMethodAnnotation(PublicApi.class) != null;
         boolean isAdminApi = handlerMethod.getMethodAnnotation(AdminApi.class) != null;
         boolean isLogin = CurrentUser.isLogin();
-        boolean isAdmin = CurrentUser.isAdmin();
+        boolean isAdmin = isLogin && CurrentUser.isAdmin();
 
-        if (isPublicApi && isAdmin) {
+        if (isPublicApi && isAdminApi) {
             log.error("公开的管理员接口？你想啥呢？目标方法：{}", handlerMethod);
             throw new BizException(BizCode.INTERNAL_SERVER_ERROR);
         }

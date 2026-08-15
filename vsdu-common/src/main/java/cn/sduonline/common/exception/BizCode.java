@@ -19,13 +19,15 @@ public enum BizCode {
     REGISTRATION_SDUPASS_JWT_INVALID(10001, "注册所使用的sdupass JWT无效或已过期", 400),
     // 鉴权相关：101xx
     UNAUTHORIZED(10100, "未登录或认证失败", 401),
-    AUTH_USER_NOT_FOUND(10101, "用户不存在", 404),
-    AUTH_ACCESS_TOKEN_EXPIRED(10102, "access token 已过期", 401),
-    AUTH_ACCESS_TOKEN_INVALID(10103, "access token 无效", 401),
-    ADMIN_REQUIRED(10104, "该接口仅管理员可访问", 403),
-    AUTH_REFRESH_TOKEN_INVALID(10105, "refresh token 无效", 401),
-    SDUPASS_LOGIN_FAILED(10106, "sdupass 验证失败", 400),
-    FROZEN_USER(10107, "账户已被冻结或停用", 403),
+    SDUPASS_LOGIN_FAILED(10101, "sdupass 验证失败", 400),
+    AUTH_USER_NOT_FOUND(10102, "用户不存在", 404),
+    ADMIN_REQUIRED(10103, "该接口仅管理员可访问", 403),
+    FROZEN_USER(10104, "账户已被冻结或停用", 403),
+    AUTH_ACCESS_TOKEN_EXPIRED(10105, "access token 已过期", 401),
+    AUTH_ACCESS_TOKEN_INVALID(10106, "access token 无效", 401),
+    // 凭证轮换相关：102xx
+    AUTH_REFRESH_TOKEN_INVALID(10200, "refresh token 无效或已过期", 401),
+    AUTH_TOKEN_ROTATE_FAIL(10201, "凭证轮换失败，请稍后再试", 500),
 
 
     //地图：12xxx
