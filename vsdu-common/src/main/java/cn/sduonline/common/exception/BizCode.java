@@ -67,6 +67,10 @@ public enum BizCode {
     SUBMISSION_FILE_TOO_LARGE(14008, "提交文件过大", 400),
     SUBMISSION_FILE_TYPE_NOT_SUPPORT(14009, "上传文件类型不支持", 400),
 
+    // 搜索与发现：15xxx
+    SEARCH_KEYWORD_TOO_LONG(15000, "搜索关键词长度不能超过50个字符", 400),
+    SEARCH_SORT_INVALID(15001, "搜索排序方式不正确", 400),
+    TOPIC_NOT_FOUND(15100, "专题不存在或已停用", 404),
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 
