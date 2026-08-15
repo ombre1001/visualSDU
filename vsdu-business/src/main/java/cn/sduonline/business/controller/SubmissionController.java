@@ -3,7 +3,7 @@ package cn.sduonline.business.controller;
 import cn.sduonline.business.data.dto.CreateSubmissionRequest;
 import cn.sduonline.business.data.dto.UpdateSubmissionRequest;
 import cn.sduonline.business.data.enums.SubmissionStatus;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SubmissionDetailVO;
 import cn.sduonline.business.data.vo.SubmissionSummaryVO;
 import cn.sduonline.business.security.context.CurrentUser;

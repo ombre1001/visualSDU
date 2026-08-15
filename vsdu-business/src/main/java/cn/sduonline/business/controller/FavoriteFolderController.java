@@ -4,7 +4,7 @@ import cn.sduonline.business.data.dto.CreateFavoriteFolderRequest;
 import cn.sduonline.business.data.dto.UpdateFavoriteFolderRequest;
 import cn.sduonline.business.data.vo.FavoriteFolderVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.service.FavoriteFolderService;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;

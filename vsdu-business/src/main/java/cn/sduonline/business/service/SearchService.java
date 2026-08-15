@@ -5,7 +5,7 @@ import cn.sduonline.business.data.po.Campus;
 import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SearchSuggestionVO;
 import cn.sduonline.business.mapper.CampusMapper;
 import cn.sduonline.business.mapper.LocationMapper;
@@ -49,19 +49,9 @@ public class SearchService {
         LinkedHashMap<String, SearchSuggestionVO> suggestions =
                 new LinkedHashMap<>();
 
-        List<Location> locations = locationMapper.selectList(
-                new LambdaQueryWrapper<Location>()
-                        .eq(Location::getStatus, ENABLED)
-                        .and(
-                                hasKeyword,
-                                wrapper -> wrapper
-                                        .like(Location::getName, keyword)
-                                        .or()
-                                        .like(Location::getAddress, keyword)
-                        )
-                        .orderByAsc(Location::getSortOrder)
-                        .orderByAsc(Location::getId)
-                        .last("LIMIT " + candidateLimit)
+        List<Location> locations = locationMapper.selectEnabledSuggestions(
+                keyword,
+                candidateLimit
         );
 
         Map<Long, Campus> locationCampuses = locations.stream()
@@ -81,34 +71,25 @@ public class SearchService {
         for (Location location : locations) {
             Campus campus = locationCampuses.get(location.getCampusId());
 
+            if (campus == null) {
+                continue;
+            }
+
             addSuggestion(
                     suggestions,
                     new SearchSuggestionVO(
                             "LOCATION",
                             location.getId(),
                             location.getName(),
-                            campus == null
-                                    ? location.getAddress()
-                                    : campus.getName()
+                            campus.getName()
                     )
             );
         }
 
-        List<Campus> campuses = campusMapper.selectList(
-                new LambdaQueryWrapper<Campus>()
-                        .eq(Campus::getStatus, ENABLED)
-                        .and(
-                                hasKeyword,
-                                wrapper -> wrapper
-                                        .like(Campus::getName, keyword)
-                                        .or()
-                                        .like(Campus::getShortName, keyword)
-                                        .or()
-                                        .like(Campus::getAddress, keyword)
-                        )
-                        .orderByAsc(Campus::getSortOrder)
-                        .orderByAsc(Campus::getId)
-                        .last("LIMIT " + candidateLimit)
+        List<Campus> campuses = campusMapper.selectEnabledCampuses(
+                keyword,
+                null,
+                candidateLimit
         );
 
         for (Campus campus : campuses) {

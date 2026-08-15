@@ -1,7 +1,7 @@
 package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.TopicDetailVO;
 import cn.sduonline.business.data.vo.TopicSummaryVO;
 import cn.sduonline.business.security.anno.PublicApi;

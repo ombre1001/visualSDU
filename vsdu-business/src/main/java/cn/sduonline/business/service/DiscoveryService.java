@@ -58,13 +58,10 @@ public class DiscoveryService {
                 LATEST_SIZE
         );
 
-        List<Campus> campuses = campusMapper.selectList(
-                new LambdaQueryWrapper<Campus>()
-                        .eq(Campus::getStatus, ENABLED)
-                        .eq(cityId != null, Campus::getCityId, cityId)
-                        .orderByAsc(Campus::getSortOrder)
-                        .orderByAsc(Campus::getId)
-                        .last("LIMIT " + CAMPUS_SECTION_SIZE)
+        List<Campus> campuses = campusMapper.selectEnabledCampuses(
+                null,
+                cityId,
+                CAMPUS_SECTION_SIZE
         );
 
         List<DiscoveryCampusSectionVO> campusSections =

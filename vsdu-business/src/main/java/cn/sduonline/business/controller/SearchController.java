@@ -2,7 +2,7 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SearchSuggestionVO;
 import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.SearchService;

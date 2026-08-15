@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="cn.sduonline.business.mapper.CampusMapper">
+
+    <select id="selectEnabledCampuses"
+            resultType="cn.sduonline.business.data.po.Campus">
+        SELECT c.*
+        FROM campus c
+        INNER JOIN city ci
+            ON ci.id = c.city_id
+            AND ci.status = 1
+        WHERE c.status = 1
+
+        <if test="keyword != null and keyword != ''">
+            AND (
+                c.name LIKE CONCAT('%', #{keyword}, '%')
+                OR c.short_name LIKE CONCAT('%', #{keyword}, '%')
+                OR c.address LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+
+        <if test="cityId != null">
+            AND ci.id = #{cityId}
+        </if>
+
+        ORDER BY c.sort_order ASC, c.id ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

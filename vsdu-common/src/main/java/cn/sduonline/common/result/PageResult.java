@@ -1,4 +1,4 @@
-package cn.sduonline.business.data.vo;
+package cn.sduonline.common.result;
 
 import java.util.List;
 

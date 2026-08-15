@@ -10,7 +10,7 @@ import cn.sduonline.business.data.po.MediaFavorite;
 import cn.sduonline.business.data.vo.BatchFavoriteResultVO;
 import cn.sduonline.business.data.vo.FavoriteFolderVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.mapper.FavoriteFolderMapper;
 import cn.sduonline.business.mapper.MediaFavoriteMapper;
 import cn.sduonline.business.mapper.MediaMapper;

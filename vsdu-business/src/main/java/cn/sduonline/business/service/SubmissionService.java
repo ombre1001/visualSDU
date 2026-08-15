@@ -7,7 +7,7 @@ import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.*;
-import cn.sduonline.business.data.vo.PageResult;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SubmissionAssetVO;
 import cn.sduonline.business.data.vo.SubmissionDetailVO;
 import cn.sduonline.business.data.vo.SubmissionSummaryVO;

@@ -5,6 +5,7 @@ import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -141,6 +142,41 @@ public class GlobalExceptionHandler {
                 .status(BizCode.BAD_REQUEST.getHttpStatusCode())
                 .body(
                         Result.error(BizCode.BAD_REQUEST, fieldErrors, "请求体字段格式错误")
+                );
+    }
+
+    /**
+     * 方法参数校验异常
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Result<Map<String, String>>> handleConstraintViolationException(
+            ConstraintViolationException ex,
+            HttpServletRequest request
+    ) {
+
+        Map<String, String> fieldErrors = ex.getConstraintViolations()
+                .stream()
+                .collect(Collectors.toMap(
+                        violation -> {
+                            String propertyPath = violation.getPropertyPath().toString();
+                            int lastDotIndex = propertyPath.lastIndexOf('.');
+                            return propertyPath.substring(lastDotIndex + 1);
+                        },
+                        violation -> Objects.toString(violation.getMessage(), "参数校验失败"),
+                        (first, ignored) -> first,
+                        LinkedHashMap::new
+                ));
+
+        log.warn(
+                "请求参数不合规范 | 信息：{} | 路径：{} {}",
+                fieldErrors,
+                request.getMethod(),
+                request.getRequestURI()
+        );
+        return ResponseEntity
+                .status(BizCode.BAD_REQUEST.getHttpStatusCode())
+                .body(
+                        Result.error(BizCode.BAD_REQUEST, fieldErrors, "请求参数格式错误")
                 );
     }
 
