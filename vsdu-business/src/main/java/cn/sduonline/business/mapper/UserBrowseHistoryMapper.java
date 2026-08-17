@@ -1,13 +1,25 @@
 package cn.sduonline.business.mapper;
 
-import org.apache.ibatis.annotations.Insert;
+import cn.sduonline.business.data.po.UserBrowseHistory;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 @Mapper
 public interface UserBrowseHistoryMapper {
 
-    @Insert("INSERT INTO user_browse_history(user_id, media_id) VALUES(#{userId}, #{mediaId}) " +
-            "ON DUPLICATE KEY UPDATE view_count = view_count + 1, last_viewed_at = CURRENT_TIMESTAMP")
-    int upsertView(@Param("userId") Long userId, @Param("mediaId") Long mediaId);
+    void upsertView(@Param("userId") Long userId, @Param("mediaId") Long mediaId);
+
+    long countVisibleByUser(@Param("userId") Long userId);
+
+    List<UserBrowseHistory> selectVisiblePage(
+            @Param("userId") Long userId,
+            @Param("offset") long offset,
+            @Param("size") long size
+    );
+
+    void deleteByUser(@Param("userId") Long userId);
+
+    void deleteByUserAndMedia(@Param("userId") Long userId, @Param("mediaId") Long mediaId);
 }

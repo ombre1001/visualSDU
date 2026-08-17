@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="cn.sduonline.business.mapper.UserBrowseHistoryMapper">
+
+    <resultMap id="UserBrowseHistoryResultMap"
+               type="cn.sduonline.business.data.po.UserBrowseHistory">
+        <result property="userId" column="user_id"/>
+        <result property="mediaId" column="media_id"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="lastViewedAt" column="last_viewed_at"/>
+    </resultMap>
+
+    <insert id="upsertView">
+        INSERT INTO user_browse_history (user_id, media_id)
+        VALUES (#{userId}, #{mediaId})
+        ON DUPLICATE KEY UPDATE
+            view_count = view_count + 1,
+            last_viewed_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="countVisibleByUser" resultType="long">
+        SELECT COUNT(*)
+        FROM user_browse_history h
+        JOIN media m ON m.id = h.media_id
+            AND m.status = 1
+        WHERE h.user_id = #{userId}
+    </select>
+
+    <select id="selectVisiblePage" resultMap="UserBrowseHistoryResultMap">
+        SELECT h.user_id,
+               h.media_id,
+               h.view_count,
+               h.last_viewed_at
+        FROM user_browse_history h
+        JOIN media m ON m.id = h.media_id
+            AND m.status = 1
+        WHERE h.user_id = #{userId}
+        ORDER BY h.last_viewed_at DESC,
+                 h.media_id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <delete id="deleteByUser">
+        DELETE FROM user_browse_history
+        WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByUserAndMedia">
+        DELETE FROM user_browse_history
+        WHERE user_id = #{userId}
+          AND media_id = #{mediaId}
+    </delete>
+
+</mapper>

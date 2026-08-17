@@ -10,13 +10,13 @@ import cn.sduonline.business.data.po.MediaFavorite;
 import cn.sduonline.business.data.vo.BatchFavoriteResultVO;
 import cn.sduonline.business.data.vo.FavoriteFolderVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.mapper.FavoriteFolderMapper;
 import cn.sduonline.business.mapper.MediaFavoriteMapper;
 import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.common.result.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class FavoriteFolderService {
 
     /**
      * 查询当前登录用户的全部收藏夹。
-     *
+     * <p>
      * 如果用户还没有默认收藏夹，则自动创建。
      */
     @Transactional
@@ -139,7 +139,7 @@ public class FavoriteFolderService {
 
     /**
      * 删除收藏夹。
-     *
+     * <p>
      * 默认收藏夹不允许删除。
      * 删除普通收藏夹时，同时取消其中的全部收藏，并同步媒体收藏数。
      */
@@ -445,7 +445,7 @@ public class FavoriteFolderService {
         }
     }
 
-    private Media requireVisibleMedia(Long mediaId) {
+    private void requireVisibleMedia(Long mediaId) {
         Media media = mediaMapper.selectOne(
                 new LambdaQueryWrapper<Media>()
                         .eq(Media::getId, mediaId)
@@ -456,8 +456,6 @@ public class FavoriteFolderService {
         if (media == null) {
             throw new BizException(BizCode.MEDIA_NOT_FOUND);
         }
-
-        return media;
     }
 
     private void requireFolderNameAvailable(

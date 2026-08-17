@@ -37,6 +37,12 @@ public class TokenRedisOperator {
                     Boolean.class
             );
 
+    private static final RedisScript<Long> DELETE_ALL_REFRESH_TOKENS_SCRIPT =
+            RedisScript.of(
+                    new ClassPathResource("redis/del-all-refresh-tokens.lua"),
+                    Long.class
+            );
+
     public boolean storeRefreshToken(Long userId, String refreshToken) {
         String refreshTokenHash = HashUtils.sha256Hex(refreshToken);
 
@@ -85,6 +91,15 @@ public class TokenRedisOperator {
                 List.of(refreshTokenKey, userRefreshTokenSetKey),
                 userId.toString(), refreshTokenHash
         );
+    }
+
+    public long deleteAllRefreshTokens(Long userId) {
+        Long deleted = redis.execute(
+                DELETE_ALL_REFRESH_TOKENS_SCRIPT,
+                List.of(TokenRedisKeys.userRefreshTokenSetKey(userId)),
+                TokenRedisKeys.refreshTokenKeyPrefix()
+        );
+        return deleted == null ? 0 : deleted;
     }
 
     public void storeTokenVersion(Long userId, Integer version) {

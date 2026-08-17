@@ -71,6 +71,19 @@ public enum BizCode {
     SEARCH_KEYWORD_TOO_LONG(15000, "搜索关键词长度不能超过50个字符", 400),
     SEARCH_SORT_INVALID(15001, "搜索排序方式不正确", 400),
     TOPIC_NOT_FOUND(15100, "专题不存在或已停用", 404),
+
+    // 个人中心：16xxx
+    USER_PROFILE_UPDATE_EMPTY(16000, "请至少提供一项需要修改的个人资料", 400),
+    USER_NICKNAME_INVALID(16001, "昵称长度必须在2到30个字符之间", 400),
+    USER_PASSWORD_NOT_CONFIGURED(16100, "当前账号未配置密码，不能通过该接口修改", 409),
+    USER_CURRENT_PASSWORD_INCORRECT(16101, "当前密码不正确", 400),
+    USER_PASSWORD_CONFIRM_MISMATCH(16102, "两次输入的新密码不一致", 400),
+    USER_PASSWORD_UNCHANGED(16103, "新密码不能与当前密码相同", 409),
+    USER_PASSWORD_TOO_LONG(16104, "密码编码后不能超过72字节", 400),
+    USER_AVATAR_FILE_EMPTY(16200, "头像文件为空", 400),
+    USER_AVATAR_FILE_TOO_LARGE(16201, "头像文件过大", 400),
+    USER_AVATAR_FILE_TYPE_NOT_SUPPORT(16202, "头像文件类型不支持", 400),
+
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 

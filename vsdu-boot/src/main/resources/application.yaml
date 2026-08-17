@@ -2,6 +2,11 @@ spring:
   application:
     name: visual-sdu
 
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 120MB
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://8.130.108.118:3306/vsdu-db

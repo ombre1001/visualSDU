@@ -2,10 +2,10 @@ package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SearchSuggestionVO;
 import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.SearchService;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +25,10 @@ public class SearchController {
 
     /**
      * 搜索建议。
-     *
+     * <p>
      * 推荐请求：
      * GET /search/suggestions?keyword=中心校区&limit=10
-     *
+     * <p>
      * 同时兼容旧参数：
      * GET /search/suggestions?q=中心校区&limit=10
      */

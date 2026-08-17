@@ -18,6 +18,10 @@ public class TokenRedisKeys extends RedisKeys {
         return build("auth", "rt", refreshTokenHash);
     }
 
+    public static String refreshTokenKeyPrefix() {
+        return build("auth", "rt") + ":";
+    }
+
     /**
      * vsdu:auth:rt-set:{userId}
      */

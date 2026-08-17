@@ -2,12 +2,11 @@ package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.dto.CreateSubmissionRequest;
 import cn.sduonline.business.data.dto.UpdateSubmissionRequest;
-import cn.sduonline.business.data.enums.SubmissionImageScene;
+import cn.sduonline.business.data.enums.ImageScene;
 import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.*;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SubmissionAssetVO;
 import cn.sduonline.business.data.vo.SubmissionDetailVO;
 import cn.sduonline.business.data.vo.SubmissionSummaryVO;
@@ -15,6 +14,7 @@ import cn.sduonline.business.mapper.*;
 import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.infrastructure.file.exception.BadFileException;
 import cn.sduonline.infrastructure.file.image.ImageFileUpload;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
@@ -254,7 +254,7 @@ public class SubmissionService {
         try {
             for (int i = 0; i < files.size(); i++) {
                 MultipartFile file = files.get(i);
-                String key = imageFileUpload.uploadImageFile(SubmissionImageScene.INSTANCE, userId, file);
+                String key = imageFileUpload.uploadImageFile(ImageScene.SUBMISSION, userId, file);
                 uploadedKeys.add(key);
 
                 SubmissionAsset asset = new SubmissionAsset();

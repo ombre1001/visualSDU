@@ -6,7 +6,10 @@ import cn.sduonline.business.service.FavoriteFolderService;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
@@ -17,7 +20,7 @@ public class FavoriteController {
 
     /**
      * 批量管理收藏。
-     *
+     * <p>
      * 不加@PublicApi，因此必须登录。
      */
     @PostMapping("/batch")

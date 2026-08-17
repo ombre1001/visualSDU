@@ -4,8 +4,8 @@ import cn.sduonline.business.data.dto.CreateFavoriteFolderRequest;
 import cn.sduonline.business.data.dto.UpdateFavoriteFolderRequest;
 import cn.sduonline.business.data.vo.FavoriteFolderVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.service.FavoriteFolderService;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -25,7 +25,7 @@ public class FavoriteFolderController {
 
     /**
      * 查询当前用户的收藏夹。
-     *
+     * <p>
      * 不加@PublicApi，因此必须登录。
      */
     @GetMapping

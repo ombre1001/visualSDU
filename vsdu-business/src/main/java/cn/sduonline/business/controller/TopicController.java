@@ -1,11 +1,11 @@
 package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.TopicDetailVO;
 import cn.sduonline.business.data.vo.TopicSummaryVO;
 import cn.sduonline.business.security.anno.PublicApi;
 import cn.sduonline.business.service.TopicService;
+import cn.sduonline.common.result.PageResult;
 import cn.sduonline.common.result.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

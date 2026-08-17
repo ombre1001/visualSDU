@@ -5,7 +5,6 @@ import cn.sduonline.business.data.po.Campus;
 import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
-import cn.sduonline.common.result.PageResult;
 import cn.sduonline.business.data.vo.SearchSuggestionVO;
 import cn.sduonline.business.mapper.CampusMapper;
 import cn.sduonline.business.mapper.LocationMapper;
@@ -14,6 +13,7 @@ import cn.sduonline.business.mapper.MediaSearchMapper;
 import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.common.result.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -64,7 +64,7 @@ public class SearchService {
                         java.util.stream.Collectors.toMap(
                                 Campus::getId,
                                 campus -> campus,
-                                (left, right) -> left
+                                (left, _) -> left
                         )
                 );
 
@@ -134,7 +134,7 @@ public class SearchService {
                         java.util.stream.Collectors.toMap(
                                 Location::getId,
                                 location -> location,
-                                (left, right) -> left
+                                (left, _) -> left
                         )
                 );
 
