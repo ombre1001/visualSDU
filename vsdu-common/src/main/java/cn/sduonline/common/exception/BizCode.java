@@ -93,6 +93,26 @@ public enum BizCode {
     ADMIN_USER_FROZEN_UNTIL_INVALID(17005, "冻结截止时间必须晚于当前时间", 400),
     ADMIN_USER_PERMISSION_UPDATE_EMPTY(17006, "请至少提供一项需要修改的用户权限", 400),
 
+    // 管理员分类与资源运维：171xx-174xx
+    ADMIN_TAG_NOT_FOUND(17100, "标签不存在", 404),
+    ADMIN_TAG_NAME_EXISTS(17101, "标签名称已存在", 409),
+    ADMIN_TAG_UPDATE_EMPTY(17102, "请提供需要修改的标签名称", 400),
+    ADMIN_TAG_MERGE_SELF(17103, "标签不能合并到自身", 409),
+    ADMIN_LOCATION_NOT_FOUND(17110, "地点不存在", 404),
+    ADMIN_LOCATION_UPDATE_EMPTY(17111, "请至少提供一项需要修改的地点信息", 400),
+    ADMIN_LOCATION_CAMPUS_INVALID(17112, "目标校区不存在或已停用", 400),
+    ADMIN_MEDIA_NOT_FOUND(17200, "媒体不存在", 404),
+    ADMIN_MEDIA_CLASSIFICATION_EMPTY(17201, "请至少提供地点或标签分类", 400),
+    ADMIN_MEDIA_LOCATION_INVALID(17202, "媒体所属地点不存在或已停用", 400),
+    ADMIN_MEDIA_ALREADY_HIDDEN(17203, "媒体已经处于隐藏状态", 409),
+    ADMIN_MEDIA_ALREADY_VISIBLE(17204, "媒体已经处于可见状态", 409),
+    ADMIN_MEDIA_STORAGE_DELETE_FAILED(17205, "媒体存储文件删除失败", 502),
+    ADMIN_TIME_COMPARISON_MEDIA_INVALID(17300, "时光对比包含不存在或不可用的媒体", 400),
+    ADMIN_TIME_COMPARISON_LOCATION_INVALID(17301, "时光对比地点不存在或已停用", 400),
+    ADMIN_TOPIC_NOT_FOUND(17400, "专题不存在", 404),
+    ADMIN_TOPIC_SLUG_EXISTS(17401, "专题标识已存在", 409),
+    ADMIN_TOPIC_UPDATE_EMPTY(17402, "请至少提供一项需要修改的专题信息", 400),
+
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 

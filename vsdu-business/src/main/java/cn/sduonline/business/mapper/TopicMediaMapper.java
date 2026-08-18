@@ -3,12 +3,36 @@ package cn.sduonline.business.mapper;
 import cn.sduonline.business.data.po.Media;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
 @Mapper
 public interface TopicMediaMapper {
+
+    @Select("SELECT COUNT(*) FROM topic_media WHERE topic_id = #{topicId}")
+    long countAllMedia(@Param("topicId") Long topicId);
+
+    @Select("SELECT media_id FROM topic_media WHERE topic_id = #{topicId} ORDER BY sort_order, media_id")
+    List<Long> selectAllMediaIds(@Param("topicId") Long topicId);
+
+    @Insert("""
+            INSERT INTO topic_media(topic_id, media_id, sort_order, created_at)
+            VALUES(#{topicId}, #{mediaId}, #{sortOrder}, CURRENT_TIMESTAMP)
+            """)
+    int upsertRelation(
+            @Param("topicId") Long topicId,
+            @Param("mediaId") Long mediaId,
+            @Param("sortOrder") Integer sortOrder
+    );
+
+    @Delete("DELETE FROM topic_media WHERE topic_id = #{topicId}")
+    int deleteByTopic(@Param("topicId") Long topicId);
+
+    @Delete("DELETE FROM topic_media WHERE media_id = #{mediaId}")
+    int deleteByMedia(@Param("mediaId") Long mediaId);
 
     @Select("""
             SELECT COUNT(*)

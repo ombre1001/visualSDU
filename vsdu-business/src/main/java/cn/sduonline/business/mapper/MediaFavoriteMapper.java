@@ -188,4 +188,7 @@ public interface MediaFavoriteMapper extends BaseMapper<MediaFavorite> {
             @Param("targetFolderId") Long targetFolderId,
             @Param("mediaId") Long mediaId
     );
+
+    @Delete("DELETE FROM media_favorite WHERE media_id = #{mediaId}")
+    int deleteByMedia(@Param("mediaId") Long mediaId);
 }

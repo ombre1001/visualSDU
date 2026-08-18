@@ -15,4 +15,7 @@ public interface MediaLikeMapper extends BaseMapper<MediaLike> {
 
     @Delete("DELETE FROM media_like WHERE user_id = #{userId} AND media_id = #{mediaId}")
     int deleteRelation(@Param("userId") Long userId, @Param("mediaId") Long mediaId);
+
+    @Delete("DELETE FROM media_like WHERE media_id = #{mediaId}")
+    int deleteByMedia(@Param("mediaId") Long mediaId);
 }
