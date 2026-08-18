@@ -84,6 +84,15 @@ public enum BizCode {
     USER_AVATAR_FILE_TOO_LARGE(16201, "头像文件过大", 400),
     USER_AVATAR_FILE_TYPE_NOT_SUPPORT(16202, "头像文件类型不支持", 400),
 
+    // 管理员用户管理：17xxx
+    ADMIN_USER_NOT_FOUND(17000, "用户不存在", 404),
+    ADMIN_USER_SELF_ROLE_FORBIDDEN(17001, "不能修改自己的管理员角色", 409),
+    ADMIN_USER_SELF_STATUS_FORBIDDEN(17002, "不能停用或冻结自己的账号", 409),
+    ADMIN_USER_LAST_ADMIN_FORBIDDEN(17003, "系统必须至少保留一名可用管理员", 409),
+    ADMIN_USER_FROZEN_REASON_REQUIRED(17004, "冻结用户时必须填写冻结原因", 400),
+    ADMIN_USER_FROZEN_UNTIL_INVALID(17005, "冻结截止时间必须晚于当前时间", 400),
+    ADMIN_USER_PERMISSION_UPDATE_EMPTY(17006, "请至少提供一项需要修改的用户权限", 400),
+
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 
