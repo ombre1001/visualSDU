@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.AnnouncementMapper">
+
+    <sql id="allColumns">
+        id,
+        title,
+        summary,
+        content,
+        status,
+        is_pinned,
+        sort_order,
+        published_at,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
+    </sql>
+
+    <sql id="adminConditions">
+        <where>
+            <if test="status != null">
+                status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    title LIKE CONCAT('%', #{keyword}, '%')
+                    OR summary LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="countPublished" resultType="long">
+        SELECT COUNT(*)
+        FROM announcement
+        WHERE status = 1
+          AND published_at IS NOT NULL
+          AND published_at &lt;= CURRENT_TIMESTAMP(3)
+    </select>
+
+    <select id="selectPublishedPage"
+            resultType="cn.sduonline.business.data.po.Announcement">
+        SELECT
+            id,
+            title,
+            summary,
+            is_pinned,
+            published_at
+        FROM announcement
+        WHERE status = 1
+          AND published_at IS NOT NULL
+          AND published_at &lt;= CURRENT_TIMESTAMP(3)
+        ORDER BY
+            is_pinned DESC,
+            sort_order ASC,
+            published_at DESC,
+            id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM announcement
+        <include refid="adminConditions"/>
+    </select>
+
+    <select id="selectAdminPage"
+            resultType="cn.sduonline.business.data.po.Announcement">
+        SELECT
+            <include refid="allColumns"/>
+        FROM announcement
+        <include refid="adminConditions"/>
+        ORDER BY updated_at DESC, id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+</mapper>

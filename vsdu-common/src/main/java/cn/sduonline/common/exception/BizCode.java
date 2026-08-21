@@ -84,6 +84,11 @@ public enum BizCode {
     USER_AVATAR_FILE_TOO_LARGE(16201, "头像文件过大", 400),
     USER_AVATAR_FILE_TYPE_NOT_SUPPORT(16202, "头像文件类型不支持", 400),
 
+    // 公告：17xxx
+    ANNOUNCEMENT_NOT_FOUND(17000, "公告不存在或不可见", 404),
+    ANNOUNCEMENT_STATUS_INVALID(17001, "公告状态不允许执行该操作", 409),
+    ANNOUNCEMENT_UPDATE_EMPTY(17002, "请至少提供一项需要修改的公告内容", 400),
+
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),
 

@@ -1,6 +1,6 @@
 # visualSDU 前端接口对照文档
 
-> 总结日期：2026-08-16
+> 总结日期：2026-08-17
 > 本文描述的是**当前代码实际行为**，不是规划中的接口。
 
 ## 1. 全局约定
@@ -93,22 +93,30 @@ token: <accessToken>
 ### 1.4 请求格式、时间和 URL
 
 - 普通请求体使用 `application/json`。
-- 投稿创建和修改使用 `multipart/form-data`；使用浏览器 `FormData` 时不要手动设置带 boundary 的 `Content-Type`。
+- 投稿创建、修改和头像上传使用 `multipart/form-data`；使用浏览器 `FormData` 时不要手动设置带 boundary 的 `Content-Type`。
 - `LocalDateTime` 使用不带时区的 ISO 8601 字符串，例如 `2026-08-15T14:30:00`。
 - ID、计数和经纬度在 JSON 中均为数字。
 - 投稿标签和文件使用同名多值字段，例如多次 `formData.append("tags", tag)`、多次 `formData.append("files", file)`。
-- 媒体图片、缩略图、投稿预览和下载地址由 R2 预签名生成，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
+- 媒体图片、缩略图、投稿预览、用户头像和下载地址由 R2 预签名生成，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
 - 城市、校区、地点的 `coverUrl` 是数据库直接返回值，不走上述预签名逻辑。
 
 ## 2. 接口总览
 
-至今开发完成的共有 41 个实际映射的接口。
+至今开发完成的共有 49 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
 | 认证 | GET | `/auth/sdupass-login` | 公开 | Query | 凭证对象 |
 | 认证 | POST | `/auth/refresh` | 公开 | JSON | 凭证对象 |
 | 认证 | DELETE | `/auth/logout` | 登录 | JSON | `null` |
+| 个人中心 | GET | `/users/me` | 登录 | - | 个人资料对象 |
+| 个人中心 | PATCH | `/users/me` | 登录 | JSON | 个人资料对象 |
+| 个人中心 | PUT | `/users/me/avatar` | 登录 | Multipart | 个人资料对象 |
+| 个人中心 | DELETE | `/users/me/avatar` | 登录 | - | 个人资料对象 |
+| 个人中心 | PUT | `/users/me/password` | 登录 | JSON | `null` |
+| 个人中心 | GET | `/users/me/history` | 登录 | Query | 浏览足迹分页对象 |
+| 个人中心 | DELETE | `/users/me/history` | 登录 | - | `null` |
+| 个人中心 | DELETE | `/users/me/history/{mediaId}` | 登录 | Path | `null` |
 | 城市 | GET | `/cities` | 公开 | - | 城市对象数组 |
 | 城市 | GET | `/cities/{cityId}/campuses` | 公开 | Path | 校区摘要对象数组 |
 | 校区 | GET | `/campuses/{campusId}` | 公开 | Path | 校区详情对象 |
@@ -2509,9 +2517,459 @@ JSON 响应示例：
 
 主要错误：通用字段校验错误 `400`、`13000` 媒体不存在或不可见、`13100` 收藏夹不存在或无权访问、`13105` 批量移动缺少源或目标收藏夹。
 
-## 12. 错误码对照
+## 12. 个人中心与浏览足迹
 
-### 12.1 通用与认证
+本节接口均要求有效 access token。个人资料、头像和密码接口要求当前用户存在、未删除且状态为 `NORMAL`；浏览足迹接口还要求用户是具有 `casId` 的统一认证正式用户。
+
+个人资料响应中的 `avatarUrl` 是有效期为 10 分钟的预签名 URL。客户端不应长期缓存，需要时可重新请求个人资料。
+
+### 12.1 查询个人资料
+
+```http
+GET /users/me
+token: <accessToken>
+```
+
+权限：登录。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 当前用户 ID |
+| `data.phoneMasked` | string | 是 | 脱敏手机号；常规号码保留前 3 位和后 4 位，中间显示 `****` |
+| `data.casId` | string | 是 | 统一认证 CAS ID；历史非正式账号可能为空 |
+| `data.name` | string | 是 | 统一认证姓名 |
+| `data.nickname` | string | 是 | 用户昵称 |
+| `data.avatarUrl` | string | 是 | 头像预签名 URL；未设置头像时为 `null` |
+| `data.bio` | string | 是 | 个人简介 |
+| `data.role` | string | 否 | 用户角色：`USER` 或 `ADMIN` |
+| `data.status` | string | 否 | 用户状态；当前接口成功时为 `NORMAL` |
+| `data.allowUpload` | boolean | 否 | 是否允许投稿 |
+| `data.allowDownload` | boolean | 否 | 是否允许下载原图 |
+| `data.passwordConfigured` | boolean | 否 | 当前账号是否已经配置密码 |
+| `data.lastLoginAt` | string | 是 | 最近登录时间，ISO LocalDateTime |
+| `data.createdAt` | string | 是 | 账号创建时间，ISO LocalDateTime |
+| `data.updatedAt` | string | 是 | 账号更新时间，ISO LocalDateTime |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "id": 1001,
+    "phoneMasked": "138****5678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大摄影师",
+    "avatarUrl": "https://r2.example.com/avatars/1001/avatar.jpg?X-Amz-Signature=...",
+    "bio": "记录校园里的光影。",
+    "role": "USER",
+    "status": "NORMAL",
+    "allowUpload": true,
+    "allowDownload": true,
+    "passwordConfigured": true,
+    "lastLoginAt": "2026-08-17T20:30:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-17T20:35:00"
+  },
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：`10102` 用户不存在、`10104` 账户已被冻结或停用。
+
+### 12.2 修改个人资料
+
+```http
+PATCH /users/me
+token: <accessToken>
+Content-Type: application/json
+```
+
+权限：登录。
+
+请求体字段：
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `nickname` | string | 否 | 去除首尾空白后长度为 2～30；传 `null` 或省略表示不修改，不能清空昵称 |
+| `bio` | string | 否 | 最长 500 字符；去除首尾空白后为空字符串时保存为 `null`；传 `null` 或省略表示不修改 |
+
+至少需要提供一个非 `null` 字段，否则返回 `16000`。
+
+请求体示例：
+
+```json
+{
+  "nickname": "山大光影",
+  "bio": "记录校园建筑与四季。"
+}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 当前用户 ID |
+| `data.phoneMasked` | string | 是 | 脱敏手机号 |
+| `data.casId` | string | 是 | 统一认证 CAS ID |
+| `data.name` | string | 是 | 统一认证姓名 |
+| `data.nickname` | string | 是 | 修改后的昵称 |
+| `data.avatarUrl` | string | 是 | 当前头像预签名 URL |
+| `data.bio` | string | 是 | 修改后的个人简介 |
+| `data.role` | string | 否 | `USER` 或 `ADMIN` |
+| `data.status` | string | 否 | 当前接口成功时为 `NORMAL` |
+| `data.allowUpload` | boolean | 否 | 是否允许投稿 |
+| `data.allowDownload` | boolean | 否 | 是否允许下载原图 |
+| `data.passwordConfigured` | boolean | 否 | 是否已经配置密码 |
+| `data.lastLoginAt` | string | 是 | 最近登录时间 |
+| `data.createdAt` | string | 是 | 账号创建时间 |
+| `data.updatedAt` | string | 是 | 本次修改后的更新时间 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "个人资料修改成功",
+  "data": {
+    "id": 1001,
+    "phoneMasked": "138****5678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": "https://r2.example.com/avatars/1001/avatar.jpg?X-Amz-Signature=...",
+    "bio": "记录校园建筑与四季。",
+    "role": "USER",
+    "status": "NORMAL",
+    "allowUpload": true,
+    "allowDownload": true,
+    "passwordConfigured": true,
+    "lastLoginAt": "2026-08-17T20:30:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-17T21:00:00"
+  },
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：通用字段校验错误 `400`、`16000` 没有可修改字段、`16001` 昵称去除首尾空白后长度不合法。
+
+### 12.3 上传或替换头像
+
+```http
+PUT /users/me/avatar
+token: <accessToken>
+Content-Type: multipart/form-data
+```
+
+权限：登录。
+
+Multipart 字段：
+
+| 字段 | 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `file` | file | 是 | 非空；最大 5 MiB；仅支持 PNG、JPEG、WebP；声明的 MIME 必须与文件魔数一致 |
+
+上传成功后替换原头像；数据库事务提交后，后端会删除旧头像文件。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 当前用户 ID |
+| `data.phoneMasked` | string | 是 | 脱敏手机号 |
+| `data.casId` | string | 是 | 统一认证 CAS ID |
+| `data.name` | string | 是 | 统一认证姓名 |
+| `data.nickname` | string | 是 | 用户昵称 |
+| `data.avatarUrl` | string | 否 | 新头像的预签名 URL |
+| `data.bio` | string | 是 | 个人简介 |
+| `data.role` | string | 否 | `USER` 或 `ADMIN` |
+| `data.status` | string | 否 | 当前接口成功时为 `NORMAL` |
+| `data.allowUpload` | boolean | 否 | 是否允许投稿 |
+| `data.allowDownload` | boolean | 否 | 是否允许下载原图 |
+| `data.passwordConfigured` | boolean | 否 | 是否已经配置密码 |
+| `data.lastLoginAt` | string | 是 | 最近登录时间 |
+| `data.createdAt` | string | 是 | 账号创建时间 |
+| `data.updatedAt` | string | 是 | 本次修改后的更新时间 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "头像修改成功",
+  "data": {
+    "id": 1001,
+    "phoneMasked": "138****5678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": "https://r2.example.com/avatars/1001/new-avatar.webp?X-Amz-Signature=...",
+    "bio": "记录校园建筑与四季。",
+    "role": "USER",
+    "status": "NORMAL",
+    "allowUpload": true,
+    "allowDownload": true,
+    "passwordConfigured": true,
+    "lastLoginAt": "2026-08-17T20:30:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-17T21:10:00"
+  },
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：`16200` 头像文件为空、`16201` 头像文件超过 5 MiB、`16202` 文件类型或 MIME/文件内容不匹配，以及 multipart 请求体超过全局限制时的 `19000`。
+
+### 12.4 删除头像
+
+```http
+DELETE /users/me/avatar
+token: <accessToken>
+```
+
+权限：登录。未设置头像时重复调用也返回成功。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 当前用户 ID |
+| `data.phoneMasked` | string | 是 | 脱敏手机号 |
+| `data.casId` | string | 是 | 统一认证 CAS ID |
+| `data.name` | string | 是 | 统一认证姓名 |
+| `data.nickname` | string | 是 | 用户昵称 |
+| `data.avatarUrl` | string | 是 | 删除成功后为 `null` |
+| `data.bio` | string | 是 | 个人简介 |
+| `data.role` | string | 否 | `USER` 或 `ADMIN` |
+| `data.status` | string | 否 | 当前接口成功时为 `NORMAL` |
+| `data.allowUpload` | boolean | 否 | 是否允许投稿 |
+| `data.allowDownload` | boolean | 否 | 是否允许下载原图 |
+| `data.passwordConfigured` | boolean | 否 | 是否已经配置密码 |
+| `data.lastLoginAt` | string | 是 | 最近登录时间 |
+| `data.createdAt` | string | 是 | 账号创建时间 |
+| `data.updatedAt` | string | 是 | 有头像被删除时更新；原本无头像时保持原值 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "头像删除成功",
+  "data": {
+    "id": 1001,
+    "phoneMasked": "138****5678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": null,
+    "bio": "记录校园建筑与四季。",
+    "role": "USER",
+    "status": "NORMAL",
+    "allowUpload": true,
+    "allowDownload": true,
+    "passwordConfigured": true,
+    "lastLoginAt": "2026-08-17T20:30:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-17T21:15:00"
+  },
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：`10102` 用户不存在、`10104` 账户已被冻结或停用。
+
+### 12.5 修改密码
+
+```http
+PUT /users/me/password
+token: <accessToken>
+Content-Type: application/json
+```
+
+权限：登录。该接口只能修改已经配置过的密码，不能为无密码账号首次设置密码。
+
+请求体字段：
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `currentPassword` | string | 是 | 非空，最多 64 个字符；UTF-8 编码超过 72 字节时按当前密码错误处理 |
+| `newPassword` | string | 是 | 非空，8～64 个字符且 UTF-8 编码不超过 72 字节；不能与当前密码相同 |
+| `confirmPassword` | string | 是 | 非空，最多 64 个字符；必须与 `newPassword` 完全相同 |
+
+请求体示例：
+
+```json
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-password-2026",
+  "confirmPassword": "new-password-2026"
+}
+```
+
+修改成功后，后端会提升 token 版本并删除当前用户全部 refresh token。当前设备及其他设备已有的 access token 和 refresh token 均不可继续使用，客户端收到成功响应后应立即清除本地凭证并重新登录。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | null | 是 | 固定为 `null` |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "密码修改成功，现有登录凭据已失效",
+  "data": null,
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：通用字段校验错误 `400`、`16100` 未配置密码、`16101` 当前密码错误、`16102` 两次新密码不一致、`16103` 新旧密码相同、`16104` 新密码编码后超过 72 字节。
+
+### 12.6 分页查询浏览足迹
+
+```http
+GET /users/me/history?page=1&size=20
+token: <accessToken>
+```
+
+权限：登录且必须是统一认证正式用户。
+
+Query 参数：
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---|---:|---:|---|
+| `page` | number | 否 | `1` | 必须为正整数 |
+| `size` | number | 否 | `20` | 必须为正整数；大于 50 时按 50 返回 |
+
+只统计媒体自身 `status = 1` 的足迹，按 `lastViewedAt`、媒体 ID 降序排列。请求超出最后一页时返回原 `total` 和空 `items`。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total` | number | 否 | 当前可见浏览足迹总数 |
+| `data.page` | number | 否 | 后端规范化后的当前页码 |
+| `data.size` | number | 否 | 后端规范化后的每页数量，最大为 50 |
+| `data.items` | array&lt;object&gt; | 否 | 当前页浏览足迹数组；没有数据时为 `[]` |
+| `data.items[].media` | object | 否 | 媒体摘要对象 |
+| `data.items[].media.id` | number | 否 | 媒体 ID |
+| `data.items[].media.title` | string | 是 | 媒体标题 |
+| `data.items[].media.locationId` | number | 否 | 地点 ID |
+| `data.items[].media.locationName` | string | 是 | 地点名称 |
+| `data.items[].media.thumbnailUrl` | string | 否 | 缩略图预签名 URL |
+| `data.items[].media.shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
+| `data.items[].media.viewCount` | number | 否 | 媒体总浏览次数 |
+| `data.items[].media.likeCount` | number | 否 | 媒体点赞数 |
+| `data.items[].media.favoriteCount` | number | 否 | 媒体收藏数 |
+| `data.items[].viewCount` | number | 否 | 当前用户浏览该媒体的累计次数 |
+| `data.items[].lastViewedAt` | string | 否 | 当前用户最近一次浏览时间，ISO LocalDateTime |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "total": 12,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "media": {
+          "id": 501,
+          "title": "知新楼晚霞",
+          "locationId": 101,
+          "locationName": "知新楼",
+          "thumbnailUrl": "https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...",
+          "shotAt": "2026-08-15T18:30:00",
+          "viewCount": 121,
+          "likeCount": 12,
+          "favoriteCount": 7
+        },
+        "viewCount": 4,
+        "lastViewedAt": "2026-08-17T20:40:00"
+      }
+    ]
+  },
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：通用参数校验错误 `400`、`14000` 仅统一认证正式用户可用。
+
+### 12.7 清空浏览足迹
+
+```http
+DELETE /users/me/history
+token: <accessToken>
+```
+
+权限：登录且必须是统一认证正式用户。没有足迹时重复调用也返回成功。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | null | 是 | 固定为 `null` |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "浏览足迹已清空",
+  "data": null,
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：`14000` 仅统一认证正式用户可用。
+
+### 12.8 删除单条浏览足迹
+
+```http
+DELETE /users/me/history/{mediaId}
+token: <accessToken>
+```
+
+权限：登录且必须是统一认证正式用户。
+
+| 参数 | 位置 | 类型 | 必填 | 说明 |
+|---|---|---:|---:|---|
+| `mediaId` | Path | number | 是 | 正数媒体 ID |
+
+如果指定媒体没有对应浏览足迹，或媒体记录已经不存在，接口仍返回成功。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | null | 是 | 固定为 `null` |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "浏览足迹已删除",
+  "data": null,
+  "timestamp": 1786968000000
+}
+```
+
+主要错误：通用路径参数校验错误 `400`、`14000` 仅统一认证正式用户可用。
+
+## 13. 错误码对照
+
+### 13.1 通用与认证
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -2523,13 +2981,13 @@ JSON 响应示例：
 | 400 | `10101` | sdupass 验证失败 | SDU Pass 换取凭证失败 |
 | 404 | `10102` | 用户不存在 | token 对应用户或业务用户不存在 |
 | 403 | `10103` | 该接口仅管理员可访问 | 管理员接口权限不足 |
-| 403 | `10104` | 账户已被冻结或停用 | 登录/刷新时账号不可用 |
+| 403 | `10104` | 账户已被冻结或停用 | 登录、刷新或个人中心服务检查到账号不可用 |
 | 401 | `10105` | access token 已过期 | 前端可尝试 refresh 后重试一次 |
 | 401 | `10106` | access token 无效 | 签名、格式、token 版本或角色内容无效 |
 | 401 | `10200` | refresh token 无效或已过期 | 需要重新登录 |
 | 500 | `10201` | 凭证轮换失败，请稍后再试 | 并发刷新或 Redis 原子轮换失败；不要继续使用旧 token |
 
-### 12.2 地图
+### 13.2 地图
 
 | HTTP | `code` | 默认 `msg` | 当前使用情况 |
 |---:|---:|---|---|
@@ -2540,7 +2998,7 @@ JSON 响应示例：
 | 400 | `12201` | 地点不属于指定校区 | 已定义，当前接口未抛出 |
 | 400 | `12300` | 地图点位查询必须且只能指定 cityId 或 campusId | 使用中 |
 
-### 12.3 媒体与收藏夹
+### 13.3 媒体与收藏夹
 
 | HTTP | `code` | 默认 `msg` |
 |---:|---:|---|
@@ -2557,11 +3015,11 @@ JSON 响应示例：
 | 403 | `13200` | 当前账号无原图下载权限 |
 | 404 | `13300` | 时光对比不存在或不可见 |
 
-### 12.4 投稿与上传
+### 13.4 投稿与上传
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
-| 403 | `14000` | 该功能仅对统一认证正式用户开放 | 点赞、收藏、下载、投稿等服务层检查 |
+| 403 | `14000` | 该功能仅对统一认证正式用户开放 | 点赞、收藏、下载、投稿、浏览足迹等服务层检查 |
 | 403 | `14001` | 当前账号无投稿权限 | `allowUpload` 未开启 |
 | 404 | `14002` | 稿件不存在或无权访问 | 同时用于隐藏无权访问的稿件 |
 | 409 | `14003` | 当前稿件状态不允许执行该操作 | 具体 `msg` 可能说明允许的状态 |
@@ -2573,7 +3031,7 @@ JSON 响应示例：
 | 400 | `14009` | 上传文件类型不支持 | MIME 或文件魔数不符合要求 |
 | 400 | `19000` | 请求体过大 | 请求在 multipart 解析阶段超过限制 |
 
-### 12.5 搜索、发现与话题
+### 13.5 搜索、发现与话题
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -2581,7 +3039,22 @@ JSON 响应示例：
 | 400 | `15001` | 搜索排序方式不正确 | `sort` 不属于允许值 |
 | 404 | `15100` | 专题不存在或已停用 | 话题详情和话题媒体接口使用；代码枚举文案使用“专题” |
 
-## 13. 前端接入检查清单
+### 13.6 个人中心
+
+| HTTP | `code` | 默认 `msg` | 说明 |
+|---:|---:|---|---|
+| 400 | `16000` | 请至少提供一项需要修改的个人资料 | `nickname` 和 `bio` 均未提供或均为 `null` |
+| 400 | `16001` | 昵称长度必须在2到30个字符之间 | 昵称去除首尾空白后长度不合法 |
+| 409 | `16100` | 当前账号未配置密码，不能通过该接口修改 | 当前没有首次设置密码接口 |
+| 400 | `16101` | 当前密码不正确 | 当前密码不匹配、编码后超过 72 字节或并发修改失败 |
+| 400 | `16102` | 两次输入的新密码不一致 | `newPassword` 与 `confirmPassword` 不同 |
+| 409 | `16103` | 新密码不能与当前密码相同 | 新密码匹配当前密码 |
+| 400 | `16104` | 密码编码后不能超过72字节 | 新密码 UTF-8 编码超过 BCrypt 支持范围 |
+| 400 | `16200` | 头像文件为空 | 未传 `file` 或文件内容为空 |
+| 400 | `16201` | 头像文件过大 | 文件超过 5 MiB |
+| 400 | `16202` | 头像文件类型不支持 | 仅支持 PNG、JPEG、WebP，且 MIME 必须与文件内容一致 |
+
+## 14. 前端接入检查清单
 
 - 使用环境变量维护 `BASE_URL`，不要根据 Controller 注释硬编码 `/api/v1`。
 - 请求头名称使用小写或原样 `token`，值只放 JWT，不加 `Bearer `。
@@ -2591,7 +3064,10 @@ JSON 响应示例：
 - 所有接口先检查 HTTP 状态，再检查 `code === 0`，不要依赖 `msg` 文案。
 - 枚举传英文大写名称，尤其是 `SubmissionStatus`。
 - 投稿使用多值 FormData 字段；不手动写 multipart boundary。
-- 预签名媒体 URL 只作短期展示/下载使用，过期后重新请求详情。
+- 头像使用字段名为 `file` 的 FormData 上传；限制为 PNG、JPEG、WebP 和 5 MiB。
+- 预签名 URL（包括媒体、投稿预览、头像和下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
+- 修改密码成功后立即清除本地 access token 和 refresh token，并引导用户重新登录。
+- 浏览足迹的 `size` 最大按 50 返回；清空和单条删除均按幂等成功处理。
 - 搜索排序值使用 `relevance`、`newest`、`oldest`、`hot`；搜索建议的 `TAG` 类型没有 ID。
 - 批量收藏操作的 `action` 使用大写 `ADD`、`REMOVE`、`MOVE`；`requestedCount` 是媒体 ID 去重后的数量。
 - 可用 `/ping/public` 做免登录存活检查，用 `/ping/auth`、`/ping/admin` 分别检查登录和管理员鉴权链路。
