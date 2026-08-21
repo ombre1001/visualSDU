@@ -54,4 +54,9 @@
           AND media_id = #{mediaId}
     </delete>
 
+    <delete id="deleteByMedia">
+        DELETE FROM user_browse_history
+        WHERE media_id = #{mediaId}
+    </delete>
+
 </mapper>

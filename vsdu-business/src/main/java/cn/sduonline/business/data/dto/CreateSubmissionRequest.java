@@ -24,8 +24,12 @@ public class CreateSubmissionRequest {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime shotAt;
 
-    @Size(max = 20, message = "标签最多20个")
-    private List<@Size(max = 32, message = "单个标签不能超过32个字符") String> tags = new ArrayList<>();
+    @Size(max = 20, message = "单篇稿件最多选择20个标签")
+    private List<
+            @NotNull(message = "标签ID不能为空")
+            @Positive(message = "标签ID必须为正数")
+            Long
+            > tagIds = new ArrayList<>();
 
     @Size(max = 2000, message = "稿件描述不能超过2000个字符")
     private String description;

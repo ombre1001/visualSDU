@@ -3,13 +3,17 @@ package cn.sduonline.business.service;
 import cn.sduonline.business.data.po.Campus;
 import cn.sduonline.business.data.po.City;
 import cn.sduonline.business.data.po.Location;
+import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.vo.LocationDetailVO;
 import cn.sduonline.business.data.vo.LocationListVO;
+import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.mapper.CampusMapper;
 import cn.sduonline.business.mapper.CityMapper;
 import cn.sduonline.business.mapper.LocationMapper;
+import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.common.result.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,8 @@ public class LocationService {
     private final CityMapper cityMapper;
     private final CampusMapper campusMapper;
     private final LocationMapper locationMapper;
+    private final MediaMapper mediaMapper;
+    private final MediaService mediaService;
 
     /**
      * 查询指定校区下的地点。
@@ -76,6 +82,69 @@ public class LocationService {
                 .coverUrl(location.getCoverUrl())
                 .description(location.getDescription())
                 .build();
+    }
+
+    /**
+     * 分页查询指定地点下公开可见的媒体资源。
+     */
+    public PageResult<MediaSummaryVO> media(
+            Long locationId,
+            long page,
+            long size
+    ) {
+        Location location = requireEnabledLocation(locationId);
+        Campus campus = requireEnabledCampus(location.getCampusId());
+        requireEnabledCity(campus.getCityId());
+
+        long safePage = Math.max(page, 1);
+        long safeSize = Math.clamp(size, 1, 50);
+
+        long total = mediaMapper.selectCount(
+                new LambdaQueryWrapper<Media>()
+                        .eq(Media::getLocationId, location.getId())
+                        .eq(Media::getStatus, ENABLED)
+        );
+
+        if (total == 0) {
+            return new PageResult<>(
+                    0,
+                    safePage,
+                    safeSize,
+                    List.of()
+            );
+        }
+
+        long lastPage = (total - 1) / safeSize + 1;
+        if (safePage > lastPage) {
+            return new PageResult<>(
+                    total,
+                    safePage,
+                    safeSize,
+                    List.of()
+            );
+        }
+
+        long offset = (safePage - 1) * safeSize;
+
+        List<MediaSummaryVO> items = mediaMapper.selectList(
+                        new LambdaQueryWrapper<Media>()
+                                .eq(Media::getLocationId, location.getId())
+                                .eq(Media::getStatus, ENABLED)
+                                .orderByDesc(Media::getShotAt)
+                                .orderByDesc(Media::getCreatedAt)
+                                .orderByDesc(Media::getId)
+                                .last("LIMIT " + safeSize + " OFFSET " + offset)
+                )
+                .stream()
+                .map(mediaService::toSummary)
+                .toList();
+
+        return new PageResult<>(
+                total,
+                safePage,
+                safeSize,
+                items
+        );
     }
 
     private Location requireEnabledLocation(Long locationId) {

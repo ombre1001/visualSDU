@@ -22,4 +22,6 @@ public interface UserBrowseHistoryMapper {
     void deleteByUser(@Param("userId") Long userId);
 
     void deleteByUserAndMedia(@Param("userId") Long userId, @Param("mediaId") Long mediaId);
+
+    void deleteByMedia(@Param("mediaId") Long mediaId);
 }

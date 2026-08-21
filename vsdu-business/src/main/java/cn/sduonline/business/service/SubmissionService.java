@@ -29,8 +29,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +47,7 @@ public class SubmissionService {
     private final MediaMapper mediaMapper;
     private final UserMapper userMapper;
     private final LocationMapper locationMapper;
+    private final TagMapper tagMapper;
     private final SubmissionReviewSettingService reviewSettingService;
     private final ImageFileUpload imageFileUpload;
     private final FileStorage fileStorage;
@@ -59,7 +64,7 @@ public class SubmissionService {
                 .locationId(location.getId())
                 .description(request.getDescription())
                 .shotAt(request.getShotAt())
-                .tags(TagCodec.encode(request.getTags()))
+                .tags(encodeTagIds(request.getTagIds()))
                 .status(SubmissionStatus.PENDING)
                 .submittedAt(LocalDateTime.now())
                 .deleted(false)
@@ -376,6 +381,30 @@ public class SubmissionService {
                 submission.getShotAt(), submission.getStatus(), submission.getReviewReason(), assets.size(),
                 coverUrl, submission.getSubmittedAt(), submission.getUpdatedAt()
         );
+    }
+
+    /**
+     * 创建稿件接口接收标签 ID 数组；数据库仍保存标签名称编码，兼容现有搜索和展示逻辑。
+     */
+    private String encodeTagIds(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return null;
+
+        LinkedHashSet<Long> uniqueTagIds = new LinkedHashSet<>(tagIds);
+        Map<Long, Tag> tagsById = tagMapper.selectBatchIds(uniqueTagIds)
+                .stream()
+                .collect(Collectors.toMap(Tag::getId, Function.identity()));
+
+        List<String> tagNames = uniqueTagIds.stream()
+                .map(tagId -> {
+                    Tag tag = tagsById.get(tagId);
+                    if (tag == null) {
+                        throw new BizException(BizCode.ADMIN_TAG_NOT_FOUND);
+                    }
+                    return tag.getName();
+                })
+                .toList();
+
+        return TagCodec.encode(tagNames);
     }
 
     private void deleteKeysOnRollback(List<String> keys) {
