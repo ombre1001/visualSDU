@@ -7,6 +7,6 @@ auth.token = "联系作者获取"
 [[proxies]]
 name = "vsdu-api"
 type = "tcp"
-localIP = "127.0.0.1"
+localIP = "app"
 localPort = 8080
 remotePort = 6000
