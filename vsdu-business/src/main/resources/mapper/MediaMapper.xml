@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.MediaMapper">
+
+    <sql id="allColumns">
+        m.id, m.submission_id, m.uploader_id, m.location_id,
+        m.object_key, m.thumbnail_key, m.title, m.description,
+        m.shot_at, m.tags, m.status, m.view_count, m.like_count,
+        m.favorite_count, m.download_count, m.created_at, m.updated_at
+    </sql>
+
+    <sql id="adminConditions">
+        <where>
+            <if test="locationId != null">
+                m.location_id = #{locationId}
+            </if>
+            <if test="status != null">
+                AND m.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    m.title LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.description LIKE CONCAT('%', #{keyword}, '%')
+                    OR m.tags LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectSearchSuggestions"
+            resultType="cn.sduonline.business.data.projection.SearchSuggestionRow">
+        SELECT
+            'MEDIA' AS type,
+            m.id,
+            m.title AS text,
+            l.name AS subtitle
+        FROM media m
+        LEFT JOIN location l ON l.id = m.location_id AND l.status = 1
+        WHERE m.status = 1
+          AND m.title IS NOT NULL
+          AND m.title != ''
+        <if test="keyword != null and keyword != ''">
+            AND (
+                m.title LIKE CONCAT('%', #{keyword}, '%')
+                OR m.description LIKE CONCAT('%', #{keyword}, '%')
+                OR m.tags LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY
+            m.favorite_count DESC,
+            m.like_count DESC,
+            m.view_count DESC,
+            m.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectRelatedMedia"
+            resultType="cn.sduonline.business.data.projection.MediaSummaryRow">
+        SELECT
+            m.id,
+            m.title,
+            m.location_id,
+            l.name AS location_name,
+            COALESCE(NULLIF(m.thumbnail_key, ''), m.object_key) AS thumbnail_key,
+            m.shot_at,
+            m.view_count,
+            m.like_count,
+            m.favorite_count
+        FROM media m
+        LEFT JOIN location l ON l.id = m.location_id
+        WHERE m.status = 1
+          AND m.id != #{sourceId}
+          AND (
+              m.location_id = #{locationId}
+              <if test="tag != null and tag != ''">
+                  OR LOCATE(
+                      CONCAT('|', #{tag}, '|'),
+                      CONCAT('|', COALESCE(m.tags, ''), '|')
+                  ) > 0
+              </if>
+          )
+        ORDER BY m.like_count DESC, m.view_count DESC, m.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countVisibleByLocation" resultType="long">
+        SELECT COUNT(*)
+        FROM media
+        WHERE location_id = #{locationId}
+          AND status = 1
+    </select>
+
+    <select id="selectVisibleByLocationPage"
+            resultType="cn.sduonline.business.data.projection.MediaSummaryRow">
+        SELECT
+            m.id,
+            m.title,
+            m.location_id,
+            l.name AS location_name,
+            COALESCE(NULLIF(m.thumbnail_key, ''), m.object_key) AS thumbnail_key,
+            m.shot_at,
+            m.view_count,
+            m.like_count,
+            m.favorite_count
+        FROM media m
+        LEFT JOIN location l ON l.id = m.location_id
+        WHERE m.location_id = #{locationId}
+          AND m.status = 1
+        ORDER BY m.shot_at DESC, m.created_at DESC, m.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM media m
+        <include refid="adminConditions"/>
+    </select>
+
+    <select id="selectAdminPage" resultType="cn.sduonline.business.data.po.Media">
+        SELECT <include refid="allColumns"/>
+        FROM media m
+        <include refid="adminConditions"/>
+        ORDER BY m.updated_at DESC, m.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectByExactTag" resultType="cn.sduonline.business.data.po.Media">
+        SELECT id, tags
+        FROM media
+        WHERE LOCATE(
+            CONCAT('|', #{tag}, '|'),
+            CONCAT('|', COALESCE(tags, ''), '|')
+        ) > 0
+        ORDER BY id
+    </select>
+
+    <update id="batchUpdateTags">
+        UPDATE media
+        SET tags = CASE id
+            <foreach collection="patches" item="item">
+                WHEN #{item.id} THEN #{item.tags}
+            </foreach>
+        END,
+        updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="patches" item="item" open="(" separator="," close=")">
+            #{item.id}
+        </foreach>
+    </update>
+
+</mapper>

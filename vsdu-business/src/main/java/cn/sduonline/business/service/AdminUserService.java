@@ -12,8 +12,6 @@ import cn.sduonline.common.result.PageResult;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
 import cn.sduonline.infrastructure.jwt.local.TokenRedisOperator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,22 +40,22 @@ public class AdminUserService {
         long safeSize = Math.clamp(size, 1, 100);
         String normalizedKeyword = hasText(keyword) ? keyword.strip() : null;
 
-        LambdaQueryWrapper<User> query = new LambdaQueryWrapper<User>()
-                .eq(User::getDeleted, false)
-                .eq(role != null, User::getRole, role)
-                .eq(status != null, User::getStatus, status)
-                .and(normalizedKeyword != null, wrapper -> wrapper
-                        .like(User::getPhone, normalizedKeyword)
-                        .or().like(User::getCasId, normalizedKeyword)
-                        .or().like(User::getName, normalizedKeyword)
-                        .or().like(User::getNickname, normalizedKeyword))
-                .orderByDesc(User::getCreatedAt)
-                .orderByDesc(User::getId);
-
-        Page<User> result = userMapper.selectPage(new Page<>(safePage, safeSize), query);
+        long total = userMapper.countAdmin(
+                normalizedKeyword,
+                role == null ? null : role.getValue(),
+                status == null ? null : status.getValue()
+        );
+        long offset = (safePage - 1) * safeSize;
+        var users = total == 0 ? java.util.List.<User>of() : userMapper.selectAdminPage(
+                normalizedKeyword,
+                role == null ? null : role.getValue(),
+                status == null ? null : status.getValue(),
+                offset,
+                safeSize
+        );
         return new PageResult<>(
-                result.getTotal(), safePage, safeSize,
-                result.getRecords().stream().map(this::toVO).toList()
+                total, safePage, safeSize,
+                users.stream().map(this::toVO).toList()
         );
     }
 
@@ -77,13 +75,9 @@ public class AdminUserService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        int updated = userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, userId)
-                .eq(User::getDeleted, false)
-                .eq(User::getRole, user.getRole())
-                .set(User::getRole, newRole)
-                .set(User::getUpdatedAt, now)
-                .setSql("token_version = IFNULL(token_version, 0) + 1"));
+        int updated = userMapper.updateRoleAndIncreaseTokenVersion(
+                userId, user.getRole().getValue(), newRole.getValue(), now
+        );
         if (updated != 1) throw new BizException(BizCode.ADMIN_USER_NOT_FOUND);
 
         invalidateLoginCredentials(userId);
@@ -130,14 +124,13 @@ public class AdminUserService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        int updated = userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, userId)
-                .eq(User::getDeleted, false)
-                .set(User::getStatus, newStatus)
-                .set(User::getFrozenUntil, normalizedUntil)
-                .set(User::getFrozenReason, newStatus == UserStatus.FROZEN ? normalizedReason : null)
-                .set(User::getUpdatedAt, now)
-                .setSql("token_version = IFNULL(token_version, 0) + 1"));
+        int updated = userMapper.updateAdminStatusAndIncreaseTokenVersion(
+                userId,
+                newStatus.getValue(),
+                normalizedUntil,
+                newStatus == UserStatus.FROZEN ? normalizedReason : null,
+                now
+        );
         if (updated != 1) throw new BizException(BizCode.ADMIN_USER_NOT_FOUND);
 
         invalidateLoginCredentials(userId);
@@ -156,19 +149,13 @@ public class AdminUserService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        LambdaUpdateWrapper<User> update = new LambdaUpdateWrapper<User>()
-                .eq(User::getId, userId)
-                .eq(User::getDeleted, false)
-                .set(User::getUpdatedAt, now);
         if (request.allowUpload() != null) {
-            update.set(User::getAllowUpload, request.allowUpload());
             user.setAllowUpload(request.allowUpload());
         }
         if (request.allowDownload() != null) {
-            update.set(User::getAllowDownload, request.allowDownload());
             user.setAllowDownload(request.allowDownload());
         }
-        if (userMapper.update(null, update) != 1) {
+        if (userMapper.updatePermissionsPartial(userId, request, now) != 1) {
             throw new BizException(BizCode.ADMIN_USER_NOT_FOUND);
         }
 

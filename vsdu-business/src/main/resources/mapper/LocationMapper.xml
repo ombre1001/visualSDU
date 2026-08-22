@@ -6,8 +6,12 @@
 <mapper namespace="cn.sduonline.business.mapper.LocationMapper">
 
     <select id="selectEnabledSuggestions"
-            resultType="cn.sduonline.business.data.po.Location">
-        SELECT l.*
+            resultType="cn.sduonline.business.data.projection.SearchSuggestionRow">
+        SELECT
+            'LOCATION' AS type,
+            l.id,
+            l.name AS text,
+            c.name AS subtitle
         FROM location l
         INNER JOIN campus c
             ON c.id = l.campus_id
@@ -27,5 +31,23 @@
         ORDER BY l.sort_order ASC, l.id ASC
         LIMIT #{limit}
     </select>
+
+    <update id="updatePartial">
+        UPDATE location
+        <set>
+            <if test="request.campusId != null">campus_id = #{value.campusId},</if>
+            <if test="request.name != null">name = #{value.name},</if>
+            <if test="request.categoryCode != null">category_code = #{value.categoryCode},</if>
+            <if test="request.address != null">address = #{value.address},</if>
+            <if test="request.longitude != null">longitude = #{value.longitude},</if>
+            <if test="request.latitude != null">latitude = #{value.latitude},</if>
+            <if test="request.coverUrl != null">cover_url = #{value.coverUrl},</if>
+            <if test="request.description != null">description = #{value.description},</if>
+            <if test="request.sortOrder != null">sort_order = #{value.sortOrder},</if>
+            <if test="request.status != null">status = #{value.status},</if>
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = #{id}
+    </update>
 
 </mapper>

@@ -382,7 +382,6 @@ public class FavoriteFolderService {
                 new LambdaQueryWrapper<FavoriteFolder>()
                         .eq(FavoriteFolder::getId, folderId)
                         .eq(FavoriteFolder::getUserId, userId)
-                        .last("LIMIT 1")
         );
 
         if (folder == null) {
@@ -402,7 +401,6 @@ public class FavoriteFolderService {
                 new LambdaQueryWrapper<FavoriteFolder>()
                         .eq(FavoriteFolder::getUserId, userId)
                         .eq(FavoriteFolder::getIsDefault, true)
-                        .last("LIMIT 1")
         );
 
         if (folder != null) {
@@ -450,7 +448,6 @@ public class FavoriteFolderService {
                 new LambdaQueryWrapper<Media>()
                         .eq(Media::getId, mediaId)
                         .eq(Media::getStatus, VISIBLE)
-                        .last("LIMIT 1")
         );
 
         if (media == null) {

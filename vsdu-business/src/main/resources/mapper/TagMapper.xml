@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.TagMapper">
+
+    <select id="selectAdminTagStats"
+            resultType="cn.sduonline.business.data.projection.AdminTagStatRow">
+        SELECT
+            t.id,
+            t.name,
+            COUNT(m.id) AS media_count,
+            t.created_at,
+            t.updated_at
+        FROM tag t
+        LEFT JOIN media m
+          ON LOCATE(
+              CONCAT('|', t.name, '|'),
+              CONCAT('|', COALESCE(m.tags, ''), '|')
+          ) > 0
+        <where>
+            <if test="keyword != null and keyword != ''">
+                t.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        GROUP BY t.id, t.name, t.created_at, t.updated_at
+        ORDER BY t.name, t.id
+    </select>
+
+    <select id="selectUsedTagSuggestions" resultType="string">
+        SELECT t.name
+        FROM tag t
+        INNER JOIN (
+            SELECT
+                ranked.tags,
+                ROW_NUMBER() OVER (
+                    ORDER BY
+                        ranked.favorite_count DESC,
+                        ranked.like_count DESC,
+                        ranked.view_count DESC,
+                        ranked.id DESC
+                ) AS media_rank
+            FROM media ranked
+            WHERE ranked.status = 1
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    ranked.title LIKE CONCAT('%', #{keyword}, '%')
+                    OR ranked.description LIKE CONCAT('%', #{keyword}, '%')
+                    OR ranked.tags LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            ORDER BY
+                ranked.favorite_count DESC,
+                ranked.like_count DESC,
+                ranked.view_count DESC,
+                ranked.id DESC
+            LIMIT #{limit}
+        ) candidate
+          ON LOCATE(
+              CONCAT('|', t.name, '|'),
+              CONCAT('|', COALESCE(candidate.tags, ''), '|')
+          ) > 0
+        <where>
+        <if test="keyword != null and keyword != ''">
+            t.name LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        </where>
+        GROUP BY t.id, t.name
+        ORDER BY
+            MIN(candidate.media_rank),
+            MIN(LOCATE(t.name, candidate.tags)),
+            t.id
+        LIMIT #{limit}
+    </select>
+
+</mapper>

@@ -3,7 +3,7 @@ package cn.sduonline.business.service;
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.po.Campus;
 import cn.sduonline.business.data.po.City;
-import cn.sduonline.business.data.po.Media;
+import cn.sduonline.business.data.projection.MediaSummaryRow;
 import cn.sduonline.business.data.vo.DiscoveryCampusSectionVO;
 import cn.sduonline.business.data.vo.DiscoveryHomeVO;
 import cn.sduonline.business.data.vo.PopularTagVO;
@@ -46,14 +46,14 @@ public class DiscoveryService {
             requireEnabledCity(cityId);
         }
 
-        List<Media> hotMedia = selectMedia(
+        List<MediaSummaryRow> hotMedia = selectMedia(
                 cityId,
                 null,
                 "hot",
                 FEATURED_SIZE
         );
 
-        List<Media> latestMedia = selectMedia(
+        List<MediaSummaryRow> latestMedia = selectMedia(
                 cityId,
                 null,
                 "newest",
@@ -84,7 +84,7 @@ public class DiscoveryService {
                         ))
                         .toList();
 
-        List<Media> tagStatisticMedia = selectMedia(
+        List<MediaSummaryRow> tagStatisticMedia = selectMedia(
                 cityId,
                 null,
                 "hot",
@@ -105,7 +105,7 @@ public class DiscoveryService {
         );
     }
 
-    private List<Media> selectMedia(
+    private List<MediaSummaryRow> selectMedia(
             Long cityId,
             Long campusId,
             String sort,
@@ -127,11 +127,11 @@ public class DiscoveryService {
     }
 
     private List<PopularTagVO> calculatePopularTags(
-            List<Media> media
+            List<MediaSummaryRow> media
     ) {
         Map<String, Long> counts = new LinkedHashMap<>();
 
-        for (Media item : media) {
+        for (MediaSummaryRow item : media) {
             for (String tag : TagCodec.decode(item.getTags())) {
                 if (tag == null || tag.isBlank()) {
                     continue;

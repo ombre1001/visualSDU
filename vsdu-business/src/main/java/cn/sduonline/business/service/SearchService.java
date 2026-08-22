@@ -2,19 +2,17 @@ package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.po.Campus;
-import cn.sduonline.business.data.po.Location;
-import cn.sduonline.business.data.po.Media;
+import cn.sduonline.business.data.projection.SearchSuggestionRow;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.data.vo.SearchSuggestionVO;
 import cn.sduonline.business.mapper.CampusMapper;
 import cn.sduonline.business.mapper.LocationMapper;
 import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.business.mapper.MediaSearchMapper;
-import cn.sduonline.business.util.TagCodec;
+import cn.sduonline.business.mapper.TagMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,12 +26,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SearchService {
 
-    private static final int ENABLED = 1;
-
     private final MediaSearchMapper mediaSearchMapper;
     private final MediaMapper mediaMapper;
     private final LocationMapper locationMapper;
     private final CampusMapper campusMapper;
+    private final TagMapper tagMapper;
     private final MediaService mediaService;
 
     public List<SearchSuggestionVO> suggestions(
@@ -41,50 +38,18 @@ public class SearchService {
             int limit
     ) {
         String keyword = normalizeKeyword(rawKeyword);
-        boolean hasKeyword = StringUtils.hasText(keyword);
-
         int safeLimit = Math.clamp(limit, 1, 20);
         int candidateLimit = Math.min(safeLimit * 4, 80);
 
         LinkedHashMap<String, SearchSuggestionVO> suggestions =
                 new LinkedHashMap<>();
 
-        List<Location> locations = locationMapper.selectEnabledSuggestions(
+        List<SearchSuggestionRow> locations = locationMapper.selectEnabledSuggestions(
                 keyword,
                 candidateLimit
         );
-
-        Map<Long, Campus> locationCampuses = locations.stream()
-                .map(Location::getCampusId)
-                .distinct()
-                .map(campusMapper::selectById)
-                .filter(campus -> campus != null
-                        && Integer.valueOf(ENABLED).equals(campus.getStatus()))
-                .collect(
-                        java.util.stream.Collectors.toMap(
-                                Campus::getId,
-                                campus -> campus,
-                                (left, _) -> left
-                        )
-                );
-
-        for (Location location : locations) {
-            Campus campus = locationCampuses.get(location.getCampusId());
-
-            if (campus == null) {
-                continue;
-            }
-
-            addSuggestion(
-                    suggestions,
-                    new SearchSuggestionVO(
-                            "LOCATION",
-                            location.getId(),
-                            location.getName(),
-                            campus.getName()
-                    )
-            );
-        }
+        locations.stream().map(this::toSuggestion)
+                .forEach(item -> addSuggestion(suggestions, item));
 
         List<Campus> campuses = campusMapper.selectEnabledCampuses(
                 keyword,
@@ -104,76 +69,13 @@ public class SearchService {
             );
         }
 
-        List<Media> media = mediaMapper.selectList(
-                new LambdaQueryWrapper<Media>()
-                        .eq(Media::getStatus, ENABLED)
-                        .and(
-                                hasKeyword,
-                                wrapper -> wrapper
-                                        .like(Media::getTitle, keyword)
-                                        .or()
-                                        .like(Media::getDescription, keyword)
-                                        .or()
-                                        .like(Media::getTags, keyword)
-                        )
-                        .orderByDesc(Media::getFavoriteCount)
-                        .orderByDesc(Media::getLikeCount)
-                        .orderByDesc(Media::getViewCount)
-                        .orderByDesc(Media::getId)
-                        .last("LIMIT " + candidateLimit)
-        );
+        tagMapper.selectUsedTagSuggestions(keyword, candidateLimit).stream()
+                .map(tag -> new SearchSuggestionVO("TAG", null, tag, "标签"))
+                .forEach(item -> addSuggestion(suggestions, item));
 
-        Map<Long, Location> mediaLocations = media.stream()
-                .map(Media::getLocationId)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .map(locationMapper::selectById)
-                .filter(location -> location != null
-                        && Integer.valueOf(ENABLED).equals(location.getStatus()))
-                .collect(
-                        java.util.stream.Collectors.toMap(
-                                Location::getId,
-                                location -> location,
-                                (left, _) -> left
-                        )
-                );
-
-        // 从当前media.tags字段解析标签建议。
-        for (Media item : media) {
-            for (String tag : TagCodec.decode(item.getTags())) {
-                if (!hasKeyword
-                        || tag.toLowerCase(Locale.ROOT)
-                        .contains(keyword.toLowerCase(Locale.ROOT))) {
-                    addSuggestion(
-                            suggestions,
-                            new SearchSuggestionVO(
-                                    "TAG",
-                                    null,
-                                    tag,
-                                    "标签"
-                            )
-                    );
-                }
-            }
-        }
-
-        for (Media item : media) {
-            if (!StringUtils.hasText(item.getTitle())) {
-                continue;
-            }
-
-            Location location = mediaLocations.get(item.getLocationId());
-
-            addSuggestion(
-                    suggestions,
-                    new SearchSuggestionVO(
-                            "MEDIA",
-                            item.getId(),
-                            item.getTitle(),
-                            location == null ? null : location.getName()
-                    )
-            );
-        }
+        mediaMapper.selectSearchSuggestions(keyword, candidateLimit).stream()
+                .map(this::toSuggestion)
+                .forEach(item -> addSuggestion(suggestions, item));
 
         return suggestions.values()
                 .stream()
@@ -277,5 +179,9 @@ public class SearchService {
                 .toLowerCase(Locale.ROOT);
 
         suggestions.putIfAbsent(key, suggestion);
+    }
+
+    private SearchSuggestionVO toSuggestion(SearchSuggestionRow row) {
+        return new SearchSuggestionVO(row.getType(), row.getId(), row.getText(), row.getSubtitle());
     }
 }

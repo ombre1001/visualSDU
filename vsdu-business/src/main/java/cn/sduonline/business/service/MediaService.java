@@ -1,6 +1,7 @@
 package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.enums.UserStatus;
+import cn.sduonline.business.data.projection.MediaSummaryRow;
 import cn.sduonline.business.data.po.*;
 import cn.sduonline.business.data.vo.MediaDetailVO;
 import cn.sduonline.business.data.vo.MediaDownloadVO;
@@ -113,16 +114,9 @@ public class MediaService {
     public List<MediaSummaryVO> related(Long mediaId, int size) {
         Media source = requireVisible(mediaId);
         int safeSize = Math.clamp(size, 1, 30);
-        return mediaMapper.selectList(new LambdaQueryWrapper<Media>()
-                        .eq(Media::getStatus, VISIBLE)
-                        .ne(Media::getId, mediaId)
-                        .and(wrapper -> wrapper
-                                .eq(Media::getLocationId, source.getLocationId())
-                                .or(source.getTags() != null && !source.getTags().isBlank(),
-                                        nested -> nested.like(Media::getTags, firstTag(source.getTags()))))
-                        .orderByDesc(Media::getLikeCount)
-                        .orderByDesc(Media::getViewCount)
-                        .last("LIMIT " + safeSize))
+        String tag = source.getTags() == null || source.getTags().isBlank()
+                ? null : firstTag(source.getTags());
+        return mediaMapper.selectRelatedMedia(mediaId, source.getLocationId(), tag, safeSize)
                 .stream()
                 .map(this::toSummary)
                 .toList();
@@ -145,6 +139,14 @@ public class MediaService {
                 location == null ? null : location.getName(), fileStorage.getUrl(thumbnailKey),
                 media.getShotAt(), value(media.getViewCount()), value(media.getLikeCount()),
                 value(media.getFavoriteCount())
+        );
+    }
+
+    MediaSummaryVO toSummary(MediaSummaryRow row) {
+        return new MediaSummaryVO(
+                row.getId(), row.getTitle(), row.getLocationId(), row.getLocationName(),
+                fileStorage.getUrl(row.getThumbnailKey()), row.getShotAt(),
+                value(row.getViewCount()), value(row.getLikeCount()), value(row.getFavoriteCount())
         );
     }
 
@@ -197,8 +199,7 @@ public class MediaService {
     private FavoriteFolder getOrCreateDefaultFolder(Long userId) {
         FavoriteFolder folder = folderMapper.selectOne(new LambdaQueryWrapper<FavoriteFolder>()
                 .eq(FavoriteFolder::getUserId, userId)
-                .eq(FavoriteFolder::getIsDefault, true)
-                .last("LIMIT 1"));
+                .eq(FavoriteFolder::getIsDefault, true));
         if (folder != null) return folder;
 
         folder = new FavoriteFolder();

@@ -1,6 +1,7 @@
 package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.po.Topic;
+import cn.sduonline.business.data.projection.TopicSummaryRow;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.data.vo.TopicDetailVO;
 import cn.sduonline.business.data.vo.TopicSummaryVO;
@@ -26,12 +27,7 @@ public class TopicService {
     private final MediaService mediaService;
 
     public List<TopicSummaryVO> list() {
-        return topicMapper.selectList(
-                        new LambdaQueryWrapper<Topic>()
-                                .eq(Topic::getStatus, ENABLED)
-                                .orderByAsc(Topic::getSortOrder)
-                                .orderByAsc(Topic::getId)
-                )
+        return topicMapper.selectEnabledSummaries()
                 .stream()
                 .map(this::toSummary)
                 .toList();
@@ -95,14 +91,10 @@ public class TopicService {
         );
     }
 
-    TopicSummaryVO toSummary(Topic topic) {
+    private TopicSummaryVO toSummary(TopicSummaryRow topic) {
         return new TopicSummaryVO(
-                topic.getId(),
-                topic.getName(),
-                topic.getSlug(),
-                topic.getDescription(),
-                topic.getCoverUrl(),
-                topicMediaMapper.countVisibleMedia(topic.getId())
+                topic.getId(), topic.getName(), topic.getSlug(), topic.getDescription(),
+                topic.getCoverUrl(), topic.getMediaCount()
         );
     }
 

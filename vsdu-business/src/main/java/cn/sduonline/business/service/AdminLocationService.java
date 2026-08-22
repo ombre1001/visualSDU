@@ -10,7 +10,6 @@ import cn.sduonline.business.mapper.LocationMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,20 +49,19 @@ public class AdminLocationService {
                 && r.description() == null && r.sortOrder() == null && r.status() == null) {
             throw new BizException(BizCode.ADMIN_LOCATION_UPDATE_EMPTY);
         }
-        LambdaUpdateWrapper<Location> update = new LambdaUpdateWrapper<Location>().eq(Location::getId, id);
-        if (r.campusId() != null) { requireCampus(r.campusId()); location.setCampusId(r.campusId()); update.set(Location::getCampusId, r.campusId()); }
-        if (r.name() != null) { String v = required(r.name(), "地点名称不能为空"); location.setName(v); update.set(Location::getName, v); }
-        if (r.categoryCode() != null) { String v = nullable(r.categoryCode()); location.setCategoryCode(v); update.set(Location::getCategoryCode, v); }
-        if (r.address() != null) { String v = nullable(r.address()); location.setAddress(v); update.set(Location::getAddress, v); }
-        if (r.longitude() != null) { location.setLongitude(r.longitude()); update.set(Location::getLongitude, r.longitude()); }
-        if (r.latitude() != null) { location.setLatitude(r.latitude()); update.set(Location::getLatitude, r.latitude()); }
-        if (r.coverUrl() != null) { String v = nullable(r.coverUrl()); location.setCoverUrl(v); update.set(Location::getCoverUrl, v); }
-        if (r.description() != null) { String v = nullable(r.description()); location.setDescription(v); update.set(Location::getDescription, v); }
-        if (r.sortOrder() != null) { location.setSortOrder(r.sortOrder()); update.set(Location::getSortOrder, r.sortOrder()); }
-        if (r.status() != null) { location.setStatus(r.status()); update.set(Location::getStatus, r.status()); }
+        if (r.campusId() != null) { requireCampus(r.campusId()); location.setCampusId(r.campusId()); }
+        if (r.name() != null) { location.setName(required(r.name(), "地点名称不能为空")); }
+        if (r.categoryCode() != null) { location.setCategoryCode(nullable(r.categoryCode())); }
+        if (r.address() != null) { location.setAddress(nullable(r.address())); }
+        if (r.longitude() != null) { location.setLongitude(r.longitude()); }
+        if (r.latitude() != null) { location.setLatitude(r.latitude()); }
+        if (r.coverUrl() != null) { location.setCoverUrl(nullable(r.coverUrl())); }
+        if (r.description() != null) { location.setDescription(nullable(r.description())); }
+        if (r.sortOrder() != null) { location.setSortOrder(r.sortOrder()); }
+        if (r.status() != null) { location.setStatus(r.status()); }
         LocalDateTime now = LocalDateTime.now();
-        location.setUpdatedAt(now); update.set(Location::getUpdatedAt, now);
-        locationMapper.update(null, update);
+        location.setUpdatedAt(now);
+        locationMapper.updatePartial(id, r, location, now);
         return toVO(location);
     }
 

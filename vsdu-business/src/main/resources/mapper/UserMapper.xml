@@ -5,6 +5,74 @@
 
 <mapper namespace="cn.sduonline.business.mapper.UserMapper">
 
+    <sql id="adminConditions">
+        WHERE deleted = 0
+        <if test="role != null">
+            AND role = #{role}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                phone LIKE CONCAT('%', #{keyword}, '%')
+                OR cas_id LIKE CONCAT('%', #{keyword}, '%')
+                OR name LIKE CONCAT('%', #{keyword}, '%')
+                OR nickname LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM `user`
+        <include refid="adminConditions"/>
+    </select>
+
+    <select id="selectAdminPage" resultType="cn.sduonline.business.data.po.User">
+        SELECT *
+        FROM `user`
+        <include refid="adminConditions"/>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <update id="updateRoleAndIncreaseTokenVersion">
+        UPDATE `user`
+        SET role = #{newRole},
+            updated_at = #{updatedAt},
+            token_version = IFNULL(token_version, 0) + 1
+        WHERE id = #{userId}
+          AND deleted = 0
+          AND role = #{expectedRole}
+    </update>
+
+    <update id="updateAdminStatusAndIncreaseTokenVersion">
+        UPDATE `user`
+        SET status = #{status},
+            frozen_until = #{frozenUntil},
+            frozen_reason = #{frozenReason},
+            updated_at = #{updatedAt},
+            token_version = IFNULL(token_version, 0) + 1
+        WHERE id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <update id="updatePermissionsPartial">
+        UPDATE `user`
+        <set>
+            <if test="request.allowUpload != null">
+                allow_upload = #{request.allowUpload},
+            </if>
+            <if test="request.allowDownload != null">
+                allow_download = #{request.allowDownload},
+            </if>
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = #{userId}
+          AND deleted = 0
+    </update>
+
     <update id="updateStatusAndIncreaseTokenVersion">
         UPDATE `user`
         SET status = #{toStatus},

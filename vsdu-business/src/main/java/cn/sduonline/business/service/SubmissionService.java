@@ -7,6 +7,7 @@ import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.*;
+import cn.sduonline.business.data.projection.SubmissionSummaryRow;
 import cn.sduonline.business.data.vo.SubmissionAssetVO;
 import cn.sduonline.business.data.vo.SubmissionDetailVO;
 import cn.sduonline.business.data.vo.SubmissionSummaryVO;
@@ -19,7 +20,6 @@ import cn.sduonline.infrastructure.file.exception.BadFileException;
 import cn.sduonline.infrastructure.file.image.ImageFileUpload;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,19 +86,16 @@ public class SubmissionService {
         requireFormalUser(userId);
         long safePage = Math.max(page, 1);
         long safeSize = Math.clamp(size, 1, 50);
-        Page<Submission> result = submissionMapper.selectPage(
-                new Page<>(safePage, safeSize),
-                new LambdaQueryWrapper<Submission>()
-                        .eq(Submission::getUserId, userId)
-                        .eq(status != null, Submission::getStatus, status)
-                        .orderByDesc(Submission::getUpdatedAt)
-                        .orderByDesc(Submission::getId)
-        );
-
-        List<SubmissionSummaryVO> items = result.getRecords().stream()
+        Integer statusValue = status == null ? null : status.getValue();
+        long total = submissionMapper.countMine(userId, statusValue);
+        long offset = (safePage - 1) * safeSize;
+        List<SubmissionSummaryVO> items = (total == 0
+                ? List.<SubmissionSummaryRow>of()
+                : submissionMapper.selectMinePage(userId, statusValue, offset, safeSize))
+                .stream()
                 .map(this::buildSummary)
                 .toList();
-        return new PageResult<>(result.getTotal(), safePage, safeSize, items);
+        return new PageResult<>(total, safePage, safeSize, items);
     }
 
     public SubmissionDetailVO detail(Long operatorId, UserRole role, Long submissionId) {
@@ -315,8 +312,7 @@ public class SubmissionService {
             }
 
             Media media = mediaMapper.selectOne(new LambdaQueryWrapper<Media>()
-                    .eq(Media::getObjectKey, asset.getObjectKey())
-                    .last("LIMIT 1"));
+                    .eq(Media::getObjectKey, asset.getObjectKey()));
             if (media == null) {
                 media = new Media();
                 media.setSubmissionId(submission.getId());
@@ -372,14 +368,13 @@ public class SubmissionService {
         );
     }
 
-    private SubmissionSummaryVO buildSummary(Submission submission) {
-        Location location = requireLocationIncludingDisabled(submission.getLocationId());
-        List<SubmissionAsset> assets = listAssets(submission.getId());
-        String coverUrl = assets.isEmpty() ? null : fileStorage.getUrl(assets.getFirst().getObjectKey());
+    private SubmissionSummaryVO buildSummary(SubmissionSummaryRow row) {
+        String coverUrl = row.getCoverKey() == null ? null : fileStorage.getUrl(row.getCoverKey());
         return new SubmissionSummaryVO(
-                submission.getId(), submission.getLocationId(), location.getName(), submission.getDescription(),
-                submission.getShotAt(), submission.getStatus(), submission.getReviewReason(), assets.size(),
-                coverUrl, submission.getSubmittedAt(), submission.getUpdatedAt()
+                row.getId(), row.getLocationId(), row.getLocationName(), row.getDescription(),
+                row.getShotAt(), row.getStatus(), row.getReviewReason(),
+                Objects.requireNonNullElse(row.getAssetCount(), 0), coverUrl,
+                row.getSubmittedAt(), row.getUpdatedAt()
         );
     }
 

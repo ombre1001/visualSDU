@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.TimeComparisonMapper">
+
+    <select id="selectSummaryRows"
+            resultType="cn.sduonline.business.data.projection.TimeComparisonSummaryRow">
+        SELECT
+            selected.id AS comparison_id,
+            selected.location_id AS comparison_location_id,
+            comparison_location.name AS comparison_location_name,
+            selected.title AS comparison_title,
+            selected.description AS comparison_description,
+            selected.updated_at AS comparison_updated_at,
+            item.id AS item_id,
+            item.sort_order AS item_sort_order,
+            media.id AS media_id,
+            media.title AS media_title,
+            media.location_id AS media_location_id,
+            media_location.name AS media_location_name,
+            COALESCE(NULLIF(media.thumbnail_key, ''), media.object_key) AS media_thumbnail_key,
+            media.shot_at AS media_shot_at,
+            media.view_count AS media_view_count,
+            media.like_count AS media_like_count,
+            media.favorite_count AS media_favorite_count
+        FROM (
+            SELECT tc.*
+            FROM time_comparison tc
+            WHERE tc.status = 1
+            <if test="locationId != null">
+                AND tc.location_id = #{locationId}
+            </if>
+            ORDER BY tc.updated_at DESC, tc.id DESC
+            LIMIT #{limit}
+        ) selected
+        LEFT JOIN location comparison_location
+          ON comparison_location.id = selected.location_id
+        LEFT JOIN time_comparison_item item
+          ON item.comparison_id = selected.id
+        LEFT JOIN media media
+          ON media.id = item.media_id
+         AND media.status = 1
+        LEFT JOIN location media_location
+          ON media_location.id = media.location_id
+        ORDER BY
+            selected.updated_at DESC,
+            selected.id DESC,
+            item.sort_order ASC,
+            item.id ASC
+    </select>
+
+</mapper>

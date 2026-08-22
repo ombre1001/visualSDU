@@ -1,5 +1,6 @@
 package cn.sduonline.business.service;
 
+import cn.sduonline.business.data.projection.MediaTagPatch;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Tag;
 import cn.sduonline.business.data.vo.AdminTagVO;
@@ -9,7 +10,6 @@ import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +27,12 @@ public class AdminTagService {
 
     public List<AdminTagVO> list(String keyword) {
         String q = text(keyword) ? keyword.strip() : null;
-        List<Media> media = mediaMapper.selectList(new LambdaQueryWrapper<Media>().select(Media::getTags));
-        return tagMapper.selectList(new LambdaQueryWrapper<Tag>()
-                        .like(q != null, Tag::getName, q)
-                        .orderByAsc(Tag::getName).orderByAsc(Tag::getId))
-                .stream().map(tag -> toVO(tag, countMedia(media, tag.getName()))).toList();
+        return tagMapper.selectAdminTagStats(q).stream()
+                .map(row -> new AdminTagVO(
+                        row.getId(), row.getName(), row.getMediaCount(),
+                        row.getCreatedAt(), row.getUpdatedAt()
+                ))
+                .toList();
     }
 
     @Transactional
@@ -70,6 +71,7 @@ public class AdminTagService {
     }
 
     private void replaceMediaTag(String source, String target) {
+        List<MediaTagPatch> patches = new ArrayList<>();
         for (Media media : loadMedia(source)) {
             List<String> oldTags = TagCodec.decode(media.getTags());
             if (!oldTags.contains(source)) continue;
@@ -79,16 +81,13 @@ public class AdminTagService {
                 if (text(value) && !updated.contains(value)) updated.add(value);
             }
             String encoded = TagCodec.encode(updated);
-            LocalDateTime now = LocalDateTime.now();
-            mediaMapper.update(null, new LambdaUpdateWrapper<Media>()
-                    .eq(Media::getId, media.getId())
-                    .set(Media::getTags, encoded)
-                    .set(Media::getUpdatedAt, now));
+            patches.add(new MediaTagPatch(media.getId(), encoded));
         }
+        if (!patches.isEmpty()) mediaMapper.batchUpdateTags(patches, LocalDateTime.now());
     }
 
     private List<Media> loadMedia(String tagName) {
-        return mediaMapper.selectList(new LambdaQueryWrapper<Media>().like(Media::getTags, tagName));
+        return mediaMapper.selectByExactTag(tagName);
     }
 
     private long countMedia(List<Media> media, String name) {

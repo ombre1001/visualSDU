@@ -25,7 +25,6 @@ import cn.sduonline.infrastructure.file.exception.FileStorageException;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,12 +54,12 @@ public class AdminMediaService {
     public PageResult<AdminMediaVO> list(String keyword, Long locationId, Integer status, long page, long size) {
         long p = Math.max(1, page), s = Math.clamp(size, 1, 100);
         String q = keyword == null || keyword.isBlank() ? null : keyword.strip();
-        Page<Media> result = mediaMapper.selectPage(new Page<>(p, s), new LambdaQueryWrapper<Media>()
-                .eq(locationId != null, Media::getLocationId, locationId)
-                .eq(status != null, Media::getStatus, status)
-                .and(q != null, w -> w.like(Media::getTitle, q).or().like(Media::getDescription, q).or().like(Media::getTags, q))
-                .orderByDesc(Media::getUpdatedAt).orderByDesc(Media::getId));
-        return new PageResult<>(result.getTotal(), p, s, result.getRecords().stream().map(this::toVO).toList());
+        long total = mediaMapper.countAdmin(q, locationId, status);
+        long offset = (p - 1) * s;
+        List<Media> records = total == 0
+                ? List.of()
+                : mediaMapper.selectAdminPage(q, locationId, status, offset, s);
+        return new PageResult<>(total, p, s, records.stream().map(this::toVO).toList());
     }
 
     @Transactional

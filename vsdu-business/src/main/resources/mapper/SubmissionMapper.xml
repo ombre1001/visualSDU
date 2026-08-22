@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.SubmissionMapper">
+
+    <sql id="mineConditions">
+        WHERE s.user_id = #{userId}
+          AND s.deleted = 0
+        <if test="status != null">
+            AND s.status = #{status}
+        </if>
+    </sql>
+
+    <select id="countMine" resultType="long">
+        SELECT COUNT(*)
+        FROM submission s
+        <include refid="mineConditions"/>
+    </select>
+
+    <select id="selectMinePage"
+            resultType="cn.sduonline.business.data.projection.SubmissionSummaryRow">
+        SELECT
+            s.id,
+            s.location_id,
+            l.name AS location_name,
+            s.description,
+            s.shot_at,
+            s.status,
+            s.review_reason,
+            (
+                SELECT COUNT(*)
+                FROM submission_asset count_asset
+                WHERE count_asset.submission_id = s.id
+            ) AS asset_count,
+            (
+                SELECT cover_asset.object_key
+                FROM submission_asset cover_asset
+                WHERE cover_asset.submission_id = s.id
+                ORDER BY cover_asset.sort_order, cover_asset.id
+                LIMIT 1
+            ) AS cover_key,
+            s.submitted_at,
+            s.updated_at
+        FROM submission s
+        LEFT JOIN location l ON l.id = s.location_id
+        <include refid="mineConditions"/>
+        ORDER BY s.updated_at DESC, s.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+</mapper>

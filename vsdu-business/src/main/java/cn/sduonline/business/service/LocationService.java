@@ -3,7 +3,6 @@ package cn.sduonline.business.service;
 import cn.sduonline.business.data.po.Campus;
 import cn.sduonline.business.data.po.City;
 import cn.sduonline.business.data.po.Location;
-import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.vo.LocationDetailVO;
 import cn.sduonline.business.data.vo.LocationListVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
@@ -99,11 +98,7 @@ public class LocationService {
         long safePage = Math.max(page, 1);
         long safeSize = Math.clamp(size, 1, 50);
 
-        long total = mediaMapper.selectCount(
-                new LambdaQueryWrapper<Media>()
-                        .eq(Media::getLocationId, location.getId())
-                        .eq(Media::getStatus, ENABLED)
-        );
+        long total = mediaMapper.countVisibleByLocation(location.getId());
 
         if (total == 0) {
             return new PageResult<>(
@@ -126,15 +121,8 @@ public class LocationService {
 
         long offset = (safePage - 1) * safeSize;
 
-        List<MediaSummaryVO> items = mediaMapper.selectList(
-                        new LambdaQueryWrapper<Media>()
-                                .eq(Media::getLocationId, location.getId())
-                                .eq(Media::getStatus, ENABLED)
-                                .orderByDesc(Media::getShotAt)
-                                .orderByDesc(Media::getCreatedAt)
-                                .orderByDesc(Media::getId)
-                                .last("LIMIT " + safeSize + " OFFSET " + offset)
-                )
+        List<MediaSummaryVO> items = mediaMapper
+                .selectVisibleByLocationPage(location.getId(), offset, safeSize)
                 .stream()
                 .map(mediaService::toSummary)
                 .toList();

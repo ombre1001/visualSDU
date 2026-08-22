@@ -2,7 +2,6 @@ package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.dto.AdminCreateTopicRequest;
 import cn.sduonline.business.data.dto.AdminUpdateTopicRequest;
-import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Topic;
 import cn.sduonline.business.data.vo.AdminTopicVO;
 import cn.sduonline.business.mapper.MediaMapper;
@@ -11,7 +10,6 @@ import cn.sduonline.business.mapper.TopicMediaMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,24 +48,22 @@ public class AdminTopicService {
                 && r.status() == null && r.sortOrder() == null && r.mediaIds() == null) {
             throw new BizException(BizCode.ADMIN_TOPIC_UPDATE_EMPTY);
         }
-        LambdaUpdateWrapper<Topic> update = new LambdaUpdateWrapper<Topic>().eq(Topic::getId, id);
-        if (r.name() != null) { String v = required(r.name(), "专题名称不能为空"); topic.setName(v); update.set(Topic::getName, v); }
-        if (r.slug() != null) { String v = r.slug().strip(); requireUniqueSlug(v, id); topic.setSlug(v); update.set(Topic::getSlug, v); }
-        if (r.description() != null) { String v = nullable(r.description()); topic.setDescription(v); update.set(Topic::getDescription, v); }
-        if (r.coverUrl() != null) { String v = nullable(r.coverUrl()); topic.setCoverUrl(v); update.set(Topic::getCoverUrl, v); }
-        if (r.status() != null) { topic.setStatus(r.status()); update.set(Topic::getStatus, r.status()); }
-        if (r.sortOrder() != null) { topic.setSortOrder(r.sortOrder()); update.set(Topic::getSortOrder, r.sortOrder()); }
-        LocalDateTime now = LocalDateTime.now(); topic.setUpdatedAt(now); update.set(Topic::getUpdatedAt, now);
-        topicMapper.update(null, update);
+        if (r.name() != null) { topic.setName(required(r.name(), "专题名称不能为空")); }
+        if (r.slug() != null) { String v = r.slug().strip(); requireUniqueSlug(v, id); topic.setSlug(v); }
+        if (r.description() != null) { topic.setDescription(nullable(r.description())); }
+        if (r.coverUrl() != null) { topic.setCoverUrl(nullable(r.coverUrl())); }
+        if (r.status() != null) { topic.setStatus(r.status()); }
+        if (r.sortOrder() != null) { topic.setSortOrder(r.sortOrder()); }
+        LocalDateTime now = LocalDateTime.now(); topic.setUpdatedAt(now);
+        topicMapper.updatePartial(id, r, topic, now);
         if (r.mediaIds() != null) replaceMedia(id, r.mediaIds());
         return toVO(topic);
     }
 
     private void replaceMedia(Long topicId, List<Long> mediaIds) {
         if (new HashSet<>(mediaIds).size() != mediaIds.size()) throw new BizException(BizCode.BAD_REQUEST, "媒体ID不能重复");
-        for (Long id : mediaIds) {
-            Media media = mediaMapper.selectById(id);
-            if (media == null) throw new BizException(BizCode.ADMIN_MEDIA_NOT_FOUND);
+        if (!mediaIds.isEmpty() && mediaMapper.selectBatchIds(mediaIds).size() != mediaIds.size()) {
+            throw new BizException(BizCode.ADMIN_MEDIA_NOT_FOUND);
         }
         topicMediaMapper.deleteByTopic(topicId);
         for (int i = 0; i < mediaIds.size(); i++) topicMediaMapper.upsertRelation(topicId, mediaIds.get(i), i);
