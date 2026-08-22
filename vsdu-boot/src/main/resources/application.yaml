@@ -7,24 +7,11 @@ spring:
       max-file-size: 20MB
       max-request-size: 120MB
 
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://8.130.108.118:3306/vsdu-db
-    username: ${MYSQL_USERNAME}
-    password: ${MYSQL_PASSWORD}
-
-  data:
-    redis:
-      host: 8.130.108.118
-      port: 16379
-      password: ${VSDU_REDIS_PASSWORD}
-
 mybatis-plus:
   mapper-locations: classpath*:/mapper/*.xml
   type-aliases-package: cn.sduonline.business.data.po
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 vsdu:
   jwt:
@@ -33,6 +20,7 @@ vsdu:
       salt: KOISHIKISHIKAWAIIKAWAIIKISSKISSLOVELY
       iteration-cound: 114514
       key-length: 256
+
     local:
       local-secret: ${JWT_SECRET}
       access-token-expire-seconds: 3600
@@ -44,4 +32,3 @@ cloudflare:
     access-key-id: ${R2_ACCESS_KEY_ID}
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
     bucket: vsdu-bucket
-

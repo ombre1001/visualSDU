@@ -1,0 +1,60 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: visual-sdu-app
+    restart: unless-stopped
+
+    env_file:
+      - .env.test
+
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+
+    depends_on:
+      - mysql
+      - redis
+
+    ports:
+      - "8080:8080"
+
+
+  mysql:
+    image: mysql:8.4
+
+    container_name: visual-sdu-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_DATABASE: vsdu-db
+      MYSQL_USER: ${VSDU_MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${VSDU_MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+
+  redis:
+    image: redis:8-alpine
+
+    container_name: visual-sdu-redis
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${VSDU_REDIS_PASSWORD}"
+
+    volumes:
+      - redis-data:/data
+
+
+volumes:
+  mysql-data:
+  redis-data:

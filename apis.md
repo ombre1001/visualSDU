@@ -1,6 +1,6 @@
 # visualSDU 前端接口对照文档
 
-> 总结日期：2026-08-17
+> 总结日期：2026-08-22
 > 本文描述的是**当前代码实际行为**，不是规划中的接口。
 
 ## 1. 全局约定
@@ -96,13 +96,13 @@ token: <accessToken>
 - 投稿创建、修改和头像上传使用 `multipart/form-data`；使用浏览器 `FormData` 时不要手动设置带 boundary 的 `Content-Type`。
 - `LocalDateTime` 使用不带时区的 ISO 8601 字符串，例如 `2026-08-15T14:30:00`。
 - ID、计数和经纬度在 JSON 中均为数字。
-- 投稿标签和文件使用同名多值字段，例如多次 `formData.append("tags", tag)`、多次 `formData.append("files", file)`。
+- 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建投稿的标签 ID 使用 `tagIds` 同名多值字段，修改投稿的标签名称仍使用 `tags` 同名多值字段。
 - 媒体图片、缩略图、投稿预览、用户头像和下载地址由 R2 预签名生成，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
 - 城市、校区、地点的 `coverUrl` 是数据库直接返回值，不走上述预签名逻辑。
 
 ## 2. 接口总览
 
-至今开发完成的共有 49 个实际映射的接口。
+至今开发完成的共有 75 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
@@ -122,6 +122,7 @@ token: <accessToken>
 | 校区 | GET | `/campuses/{campusId}` | 公开 | Path | 校区详情对象 |
 | 校区 | GET | `/campuses/{campusId}/locations` | 公开 | Query | 地点摘要对象数组 |
 | 地点 | GET | `/locations/{locationId}` | 公开 | Path | 地点详情对象 |
+| 地点 | GET | `/locations/{locationId}/media` | 公开 | Query | 媒体摘要分页对象 |
 | 地图 | GET | `/map/markers` | 公开 | Query | 点位对象数组 |
 | 媒体 | GET | `/media/{mediaId}` | 公开 | Path | 媒体详情对象 |
 | 媒体 | POST | `/media/{mediaId}/views` | 公开 | Path | 媒体互动状态对象 |
@@ -152,6 +153,31 @@ token: <accessToken>
 | 投稿 | POST | `/submissions/{submissionId}/resubmit` | 登录 | Path | 投稿详情对象 |
 | 投稿 | POST | `/submissions/{submissionId}/withdraw` | 登录 | Path | `null` |
 | 管理 | PUT | `/admin/settings/submission-review` | 管理员 | JSON | 审核设置对象 |
+| 管理用户 | GET | `/admin/users` | 管理员 | Query | 管理用户分页对象 |
+| 管理用户 | GET | `/admin/users/{userId}` | 管理员 | Path | 管理用户对象 |
+| 管理用户 | PATCH | `/admin/users/{userId}/role` | 管理员 | JSON | 管理用户对象 |
+| 管理用户 | PATCH | `/admin/users/{userId}/status` | 管理员 | JSON | 管理用户对象 |
+| 管理用户 | PATCH | `/admin/users/{userId}/permissions` | 管理员 | JSON | 管理用户对象 |
+| 管理地点 | POST | `/admin/locations` | 管理员 | JSON | 管理地点对象 |
+| 管理地点 | PATCH | `/admin/locations/{locationId}` | 管理员 | JSON | 管理地点对象 |
+| 管理媒体 | GET | `/admin/media` | 管理员 | Query | 管理媒体分页对象 |
+| 管理媒体 | PATCH | `/admin/media/{mediaId}/classification` | 管理员 | JSON | 管理媒体对象 |
+| 管理媒体 | POST | `/admin/media/{mediaId}/hide` | 管理员 | Path | 管理媒体对象 |
+| 管理媒体 | POST | `/admin/media/{mediaId}/restore` | 管理员 | Path | 管理媒体对象 |
+| 管理媒体 | DELETE | `/admin/media/{mediaId}` | 管理员 | Path | `null` |
+| 管理标签 | GET | `/admin/tags` | 管理员 | Query | 管理标签对象数组 |
+| 管理标签 | POST | `/admin/tags` | 管理员 | JSON | 管理标签对象 |
+| 管理标签 | PATCH | `/admin/tags/{tagId}` | 管理员 | JSON | 管理标签对象 |
+| 管理标签 | POST | `/admin/tags/{tagId}/merge` | 管理员 | JSON | `null` |
+| 管理专题 | POST | `/admin/topics` | 管理员 | JSON | 管理专题对象 |
+| 管理专题 | PATCH | `/admin/topics/{topicId}` | 管理员 | JSON | 管理专题对象 |
+| 管理时光对比 | POST | `/admin/time-comparisons` | 管理员 | JSON | 管理时光对比对象 |
+| 公告 | GET | `/announcements` | 公开 | Query | 公告摘要分页对象 |
+| 公告 | GET | `/announcements/{announcementId}` | 公开 | Path | 公告详情对象 |
+| 管理公告 | GET | `/admin/announcements` | 管理员 | Query | 管理公告分页对象 |
+| 管理公告 | POST | `/admin/announcements` | 管理员 | JSON | 管理公告对象 |
+| 管理公告 | PATCH | `/admin/announcements/{announcementId}` | 管理员 | JSON | 管理公告对象 |
+| 管理公告 | POST | `/admin/announcements/{announcementId}/status` | 管理员 | JSON | 管理公告对象 |
 | 健康检查 | GET | `/ping/public` | 公开 | - | `null` |
 | 健康检查 | GET | `/ping/auth` | 登录 | - | `null` |
 | 健康检查 | GET | `/ping/admin` | 管理员 | - | `null` |
@@ -545,7 +571,63 @@ JSON 响应示例：
 - `12100`：所属校区不存在或已停用。
 - `12000`：所属城市不存在或已停用。
 
-### 4.6 地图点位
+### 4.6 地点媒体列表
+
+```http
+GET /locations/{locationId}/media?page=1&size=20
+```
+
+权限：公开。地点、所属校区和城市都必须启用；只返回 `status = 1` 的媒体，按拍摄时间、创建时间、ID 降序排列。
+
+| 参数 | 位置 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---:|---:|---:|---|
+| `locationId` | Path | number | 是 | - | 正数地点 ID |
+| `page` | Query | number | 否 | `1` | 正整数 |
+| `size` | Query | number | 否 | `20` | 正整数；大于 50 时按 50 返回 |
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total`、`data.page`、`data.size` | number | 否 | 总数、规范化页码和每页数量 |
+| `data.items` | array&lt;object&gt; | 否 | 当前页媒体摘要；越界或无数据时为 `[]` |
+| `data.items[].id`、`locationId` | number | 否 | 媒体 ID、地点 ID |
+| `data.items[].title`、`locationName` | string | 是 | 标题、地点名称 |
+| `data.items[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
+| `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].viewCount`、`likeCount`、`favoriteCount` | number | 否 | 浏览、点赞、收藏数 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "查询地点媒体成功",
+  "data": {
+    "total": 12,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": 501,
+        "title": "知新楼晚霞",
+        "locationId": 101,
+        "locationName": "知新楼",
+        "thumbnailUrl": "https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...",
+        "shotAt": "2026-08-15T18:30:00",
+        "viewCount": 121,
+        "likeCount": 12,
+        "favoriteCount": 7
+      }
+    ]
+  },
+  "timestamp": 1787392800000
+}
+```
+
+主要错误：`12200` 地点不存在或停用、`12100` 校区不存在或停用、`12000` 城市不存在或停用，以及通用路径/分页参数错误 `400`。
+
+### 4.7 地图点位
 
 ```http
 GET /map/markers?cityId=1
@@ -1170,7 +1252,7 @@ Multipart 字段：
 | `files` | File[] | 是 | 至少 1 张，最多 9 张 |
 | `locationId` | number | 是 | 正数，且地点必须已启用 |
 | `shotAt` | ISO LocalDateTime | 否 | 例如 `2026-08-15T14:30:00` |
-| `tags` | string[] | 否 | 最多 20 个；单个最多 32 字符 |
+| `tagIds` | number[] | 否 | 最多 20 个；每项必须为正数，且必须是管理员已创建的现有标签 ID |
 | `description` | string | 否 | 最多 2000 字符 |
 | `copyrightConfirmed` | boolean | 是 | 必须为 `true` |
 
@@ -1181,7 +1263,9 @@ Multipart 字段：
 - 应用层单文件上限为 20 MiB；请求还可能先受到 Spring multipart 或部署网关上限限制。
 - 空文件会被过滤；过滤后必须仍至少有一张有效图片。
 
-标签保存前会去首尾空白、移除空标签、移除标签内的 `|`、去重，并保留前 20 个。
+后端会按 `tagIds` 查询现有标签，并将对应的标签名称保存到稿件中；任一 ID 不存在时返回 `17100`。重复 ID 会按首次出现顺序去重。响应中的 `data.tags` 仍为标签名称数组，而不是标签 ID 数组。
+
+> 当前仓库只有管理员可访问的 `GET /admin/tags` 能返回标签 ID；普通用户没有获取完整可选标签列表的接口，且搜索建议中的 `TAG` 项也不返回 ID。用户端在现有接口下无法自行取得创建投稿所需的 `tagIds`。
 
 浏览器示例：
 
@@ -1190,7 +1274,7 @@ const form = new FormData();
 for (const file of files) form.append("files", file);
 form.append("locationId", String(locationId));
 if (shotAt) form.append("shotAt", shotAt);
-for (const tag of tags) form.append("tags", tag);
+for (const tagId of tagIds) form.append("tagIds", String(tagId));
 if (description !== undefined) form.append("description", description);
 form.append("copyrightConfirmed", "true");
 
@@ -1268,7 +1352,7 @@ JSON 响应示例（审核开启）：
 }
 ```
 
-主要错误：`12200`、`14000`、`14001`、`14004`、`14005`、`14007`、`14008`、`14009`、`19000` 及通用字段校验错误 `400`。
+主要错误：`12200`、`14000`、`14001`、`14004`、`14005`、`14007`、`14008`、`14009`、`17100`（标签不存在）、`19000` 及通用字段校验错误 `400`。
 
 ### 7.3 我的投稿
 
@@ -1419,6 +1503,8 @@ Content-Type: multipart/form-data
 ```
 
 仅投稿所有者可修改，且状态必须为 `PENDING` 或 `REJECTED`。Multipart 字段均为可选：
+
+> 当前仓库的修改投稿接口尚未改用标签 ID，仍接收标签名称字段 `tags`；不要在此接口提交 `tagIds`。
 
 | 字段 | 类型 | 默认/省略语义 | 约束/说明 |
 |---|---|---|---|
@@ -1652,6 +1738,770 @@ JSON 响应示例：
 未登录或非管理员调用该接口，当前均返回 `10103 / HTTP 403`。
 
 > 当前没有读取审核开关的 GET 接口，也没有审核通过/退回投稿的 HTTP 接口。
+
+### 8.2 管理员用户列表
+
+```http
+GET /admin/users?keyword=张三&role=0&status=1&page=1&size=20
+token: <管理员 accessToken>
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---|---:|---:|---|
+| `keyword` | string | 否 | - | 最长 50 字符；模糊匹配手机号、CAS ID、姓名和昵称 |
+| `role` | number | 否 | - | `0` 普通用户，`1` 管理员 |
+| `status` | number | 否 | - | `0` 停用，`1` 正常，`2` 冻结 |
+| `page` | number | 否 | `1` | 正整数 |
+| `size` | number | 否 | `20` | 正整数；大于 100 时按 100 返回 |
+
+仅查询未删除用户，按创建时间、ID 降序排列。管理员响应中的手机号不脱敏；头像为短期预签名 URL。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total`、`page`、`size` | number | 否 | 总数、规范化页码、每页数量 |
+| `data.items` | array&lt;object&gt; | 否 | 用户数组 |
+| `data.items[].id` | number | 否 | 用户 ID |
+| `data.items[].phone`、`casId`、`name`、`nickname`、`avatarUrl`、`bio` | string | 是 | 手机号、统一认证信息、昵称、头像和简介 |
+| `data.items[].role` | number | 否 | `0` 普通用户，`1` 管理员 |
+| `data.items[].status` | number | 否 | `0` 停用，`1` 正常，`2` 冻结 |
+| `data.items[].frozenUntil`、`frozenReason` | string | 是 | 冻结截止时间和原因 |
+| `data.items[].allowUpload`、`allowDownload` | boolean | 否 | 投稿和原图下载权限 |
+| `data.items[].lastLoginAt`、`createdAt`、`updatedAt` | string | 是 | 登录、创建、更新时间 |
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "total": 1,
+    "page": 1,
+    "size": 20,
+    "items": [{
+      "id": 1001,
+      "phone": "13812345678",
+      "casId": "202300000000",
+      "name": "张三",
+      "nickname": "山大光影",
+      "avatarUrl": null,
+      "bio": "记录校园四季。",
+      "role": 0,
+      "status": 1,
+      "frozenUntil": null,
+      "frozenReason": null,
+      "allowUpload": true,
+      "allowDownload": false,
+      "lastLoginAt": "2026-08-22T09:00:00",
+      "createdAt": "2026-08-01T09:00:00",
+      "updatedAt": "2026-08-22T09:00:00"
+    }]
+  },
+  "timestamp": 1787392800000
+}
+```
+
+### 8.3 管理员用户详情
+
+```http
+GET /admin/users/{userId}
+token: <管理员 accessToken>
+```
+
+`userId` 必须为正数；已逻辑删除的用户按不存在处理。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 用户 ID |
+| `data.phone`、`casId`、`name`、`nickname`、`avatarUrl`、`bio` | string | 是 | 未脱敏手机号、统一认证信息、昵称、头像和简介 |
+| `data.role`、`status` | number | 否 | 角色 `0/1`；状态 `0/1/2` |
+| `data.frozenUntil`、`frozenReason` | string | 是 | 冻结信息 |
+| `data.allowUpload`、`allowDownload` | boolean | 否 | 投稿、下载权限 |
+| `data.lastLoginAt`、`createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+JSON 响应示例：
+
+```json
+{"code":0,"msg":"成功","data":{"id":1001,"phone":"13812345678","casId":"202300000000","name":"张三","nickname":"山大光影","avatarUrl":null,"bio":"记录校园四季。","role":0,"status":1,"frozenUntil":null,"frozenReason":null,"allowUpload":true,"allowDownload":false,"lastLoginAt":"2026-08-22T09:00:00","createdAt":"2026-08-01T09:00:00","updatedAt":"2026-08-22T09:00:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17000` 用户不存在。
+
+### 8.4 修改用户角色
+
+```http
+PATCH /admin/users/{userId}/role
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{"role": 1}
+```
+
+`role` 必填，只允许 `0` 或 `1`。不能修改自己的管理员角色，也不能降级系统中最后一名正常管理员。角色实际变化后，目标用户所有现有 access token 和 refresh token 都会失效。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 目标用户 ID |
+| `data.phone`、`casId`、`name`、`nickname`、`avatarUrl`、`bio` | string | 是 | 用户资料 |
+| `data.role` | number | 否 | 修改后的角色 |
+| `data.status` | number | 否 | 当前状态 |
+| `data.frozenUntil`、`frozenReason` | string | 是 | 冻结信息 |
+| `data.allowUpload`、`allowDownload` | boolean | 否 | 投稿、下载权限 |
+| `data.lastLoginAt`、`createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "用户角色修改成功",
+  "data": {
+    "id": 1001,
+    "phone": "13812345678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": null,
+    "bio": null,
+    "role": 1,
+    "status": 1,
+    "frozenUntil": null,
+    "frozenReason": null,
+    "allowUpload": true,
+    "allowDownload": false,
+    "lastLoginAt": "2026-08-22T09:00:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-22T10:00:00"
+  },
+  "timestamp": 1787392800000
+}
+```
+
+主要错误：`17000` 用户不存在、`17001` 修改自身角色、`17003` 不能移除最后一名正常管理员。
+
+### 8.5 修改用户状态
+
+```http
+PATCH /admin/users/{userId}/status
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求体字段：
+
+| 字段 | JSON 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `status` | number | 是 | `0` 停用、`1` 正常、`2` 冻结 |
+| `frozenUntil` | string | 冻结时是 | `status=2` 时必须晚于服务器当前时间；其他状态忽略并清空 |
+| `frozenReason` | string | 冻结时是 | 去除首尾空白后非空，最长 255；其他状态忽略并清空 |
+
+```json
+{
+  "status": 2,
+  "frozenUntil": "2026-09-01T00:00:00",
+  "frozenReason": "违反社区规范"
+}
+```
+
+不能停用或冻结自己，也不能使最后一名正常管理员不可用。修改成功会使目标用户全部登录凭据失效。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 目标用户 ID |
+| `data.phone`、`casId`、`name`、`nickname`、`avatarUrl`、`bio` | string | 是 | 用户资料 |
+| `data.role`、`status` | number | 否 | 当前角色和修改后的状态 |
+| `data.frozenUntil`、`frozenReason` | string | 是 | 冻结状态下的截止时间和原因 |
+| `data.allowUpload`、`allowDownload` | boolean | 否 | 投稿、下载权限 |
+| `data.lastLoginAt`、`createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "用户状态修改成功",
+  "data": {
+    "id": 1001,
+    "phone": "13812345678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": null,
+    "bio": null,
+    "role": 0,
+    "status": 2,
+    "frozenUntil": "2026-09-01T00:00:00",
+    "frozenReason": "违反社区规范",
+    "allowUpload": true,
+    "allowDownload": false,
+    "lastLoginAt": "2026-08-22T09:00:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-22T10:10:00"
+  },
+  "timestamp": 1787392800000
+}
+```
+
+主要错误：`17000`、`17002`、`17003`、`17004`、`17005`。
+
+### 8.6 修改用户功能权限
+
+```http
+PATCH /admin/users/{userId}/permissions
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{"allowUpload": true, "allowDownload": false}
+```
+
+`allowUpload` 和 `allowDownload` 都可选，`null` 或省略表示不修改；至少提供一项非 `null` 值。该操作不会主动使目标用户现有 token 失效。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 目标用户 ID |
+| `data.phone`、`casId`、`name`、`nickname`、`avatarUrl`、`bio` | string | 是 | 用户资料 |
+| `data.role`、`status` | number | 否 | 角色和状态 |
+| `data.frozenUntil`、`frozenReason` | string | 是 | 冻结信息 |
+| `data.allowUpload`、`allowDownload` | boolean | 否 | 修改后的投稿、下载权限 |
+| `data.lastLoginAt`、`createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "用户权限修改成功",
+  "data": {
+    "id": 1001,
+    "phone": "13812345678",
+    "casId": "202300000000",
+    "name": "张三",
+    "nickname": "山大光影",
+    "avatarUrl": null,
+    "bio": null,
+    "role": 0,
+    "status": 1,
+    "frozenUntil": null,
+    "frozenReason": null,
+    "allowUpload": true,
+    "allowDownload": false,
+    "lastLoginAt": "2026-08-22T09:00:00",
+    "createdAt": "2026-08-01T09:00:00",
+    "updatedAt": "2026-08-22T10:20:00"
+  },
+  "timestamp": 1787392800000
+}
+```
+
+主要错误：`17000` 用户不存在、`17006` 没有提供可修改权限。
+
+### 8.7 创建地点
+
+```http
+POST /admin/locations
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求体字段：
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `campusId` | number | 是 | 正数，且校区必须启用 |
+| `name` | string | 是 | 去除首尾空白后非空，最长 100 |
+| `categoryCode` | string | 否 | 最长 32；空白保存为 `null` |
+| `address` | string | 否 | 最长 255；空白保存为 `null` |
+| `longitude` | number | 是 | `-180～180` |
+| `latitude` | number | 是 | `-90～90` |
+| `coverUrl` | string | 否 | 最长 1000；数据库直存 URL |
+| `description` | string | 否 | 最长 2000 |
+| `sortOrder` | number | 否 | 非负，默认 `0` |
+| `status` | number | 否 | `0` 停用、`1` 启用，默认 `1` |
+
+```json
+{
+  "campusId": 1,
+  "name": "新建教学楼",
+  "categoryCode": "BUILDING",
+  "address": "中心校区内",
+  "longitude": 117.0618,
+  "latitude": 36.6745,
+  "coverUrl": null,
+  "description": "教学建筑",
+  "sortOrder": 10,
+  "status": 1
+}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`campusId` | number | 否 | 地点、校区 ID |
+| `data.name` | string | 否 | 地点名称 |
+| `data.categoryCode`、`address`、`coverUrl`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.longitude`、`latitude` | number | 否 | 经纬度 |
+| `data.sortOrder`、`status` | number | 否 | 排序值、状态 `0/1` |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{
+  "code": 0,
+  "msg": "地点创建成功",
+  "data": {
+    "id": 110,
+    "campusId": 1,
+    "name": "新建教学楼",
+    "categoryCode": "BUILDING",
+    "address": "中心校区内",
+    "longitude": 117.0618,
+    "latitude": 36.6745,
+    "coverUrl": null,
+    "description": "教学建筑",
+    "sortOrder": 10,
+    "status": 1,
+    "createdAt": "2026-08-22T10:30:00",
+    "updatedAt": "2026-08-22T10:30:00"
+  },
+  "timestamp": 1787392800000
+}
+```
+
+主要错误：`17112` 目标校区不存在或停用，以及通用字段校验错误 `400`。
+
+### 8.8 修改地点
+
+```http
+PATCH /admin/locations/{locationId}
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+路径 ID 必须为正数。请求字段与 8.7 相同但全部可选；至少提供一个非 `null` 字段。字符串字段传空白可清为 `null`，但 `name` 不能清空；未提供的字段保持原值。
+
+请求示例：
+
+```json
+{"description": "更新后的地点介绍", "sortOrder": 20, "status": 0}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`campusId` | number | 否 | 地点、校区 ID |
+| `data.name` | string | 否 | 地点名称 |
+| `data.categoryCode`、`address`、`coverUrl`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.longitude`、`latitude` | number | 否 | 经纬度 |
+| `data.sortOrder`、`status` | number | 否 | 排序值和更新后状态 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+JSON 响应示例：
+
+```json
+{"code":0,"msg":"地点修改成功","data":{"id":110,"campusId":1,"name":"新建教学楼","categoryCode":"BUILDING","address":"中心校区内","longitude":117.0618,"latitude":36.6745,"coverUrl":null,"description":"更新后的地点介绍","sortOrder":20,"status":0,"createdAt":"2026-08-22T10:30:00","updatedAt":"2026-08-22T10:35:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17110` 地点不存在、`17111` 空更新、`17112` 新校区无效。
+
+### 8.9 管理员媒体列表
+
+```http
+GET /admin/media?keyword=晚霞&locationId=101&status=1&page=1&size=20
+token: <管理员 accessToken>
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---:|---:|---|
+| `keyword` | string | 否 | - | 最长 50；模糊匹配标题、描述、标签编码 |
+| `locationId` | number | 否 | - | 正数地点 ID；只作筛选，不校验地点是否存在 |
+| `status` | number | 否 | - | `0` 隐藏、`1` 可见 |
+| `page` | number | 否 | `1` | 正整数 |
+| `size` | number | 否 | `20` | 正整数；大于 100 时按 100 返回 |
+
+结果包含隐藏媒体，按更新时间、ID 降序排列；图片 URL 均为短期预签名 URL。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total`、`page`、`size` | number | 否 | 分页信息 |
+| `data.items` | array&lt;object&gt; | 否 | 媒体数组 |
+| `data.items[].id` | number | 否 | 媒体 ID |
+| `data.items[].submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
+| `data.items[].imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
+| `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].tags` | array&lt;string&gt; | 否 | 标签名称数组 |
+| `data.items[].status` | number | 否 | `0` 隐藏、`1` 可见 |
+| `data.items[].viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
+| `data.items[].createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "total": 1,
+    "page": 1,
+    "size": 20,
+    "items": [{
+      "id": 501,
+      "submissionId": 701,
+      "uploaderId": 1001,
+      "locationId": 101,
+      "imageUrl": "https://r2.example.com/media-501.jpg?X-Amz-Signature=...",
+      "thumbnailUrl": "https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...",
+      "title": "知新楼晚霞",
+      "description": "傍晚的知新楼",
+      "shotAt": "2026-08-15T18:30:00",
+      "tags": ["建筑", "晚霞"],
+      "status": 1,
+      "viewCount": 121,
+      "likeCount": 12,
+      "favoriteCount": 7,
+      "downloadCount": 2,
+      "createdAt": "2026-08-15T19:00:00",
+      "updatedAt": "2026-08-22T10:00:00"
+    }]
+  },
+  "timestamp": 1787392800000
+}
+```
+
+### 8.10 修改媒体分类
+
+```http
+PATCH /admin/media/{mediaId}/classification
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+| 字段 | JSON 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `locationId` | number | 否 | 正数；目标地点自身必须启用 |
+| `tagIds` | array&lt;number&gt; | 否 | 最多 20 个正数标签 ID，不得重复；`[]` 表示清空标签 |
+
+至少提供一个非 `null` 字段。标签关系实际以标签名称编码写入媒体。
+
+```json
+{"locationId": 101, "tagIds": [1, 2]}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 媒体 ID |
+| `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、修改后的地点 ID |
+| `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
+| `data.shotAt` | string | 是 | 拍摄时间 |
+| `data.tags` | array&lt;string&gt; | 否 | 修改后的标签名称数组 |
+| `data.status` | number | 否 | `0/1` |
+| `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"媒体分类更新成功","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:30:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17200` 媒体不存在、`17201` 空分类、`17202` 地点无效、`17100` 标签不存在，以及重复标签 ID 对应通用 `400`。
+
+### 8.11 隐藏媒体
+
+```http
+POST /admin/media/{mediaId}/hide
+token: <管理员 accessToken>
+```
+
+无请求体。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 媒体 ID |
+| `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
+| `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
+| `data.shotAt` | string | 是 | 拍摄时间 |
+| `data.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.status` | number | 否 | 隐藏成功后为 `0` |
+| `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"媒体已隐藏","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":0,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:40:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17200` 媒体不存在、`17203` 已经隐藏。
+
+### 8.12 恢复媒体
+
+```http
+POST /admin/media/{mediaId}/restore
+token: <管理员 accessToken>
+```
+
+无请求体。媒体必须配置一个自身启用的地点。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 媒体 ID |
+| `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
+| `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
+| `data.shotAt` | string | 是 | 拍摄时间 |
+| `data.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.status` | number | 否 | 恢复成功后为 `1` |
+| `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"媒体已恢复","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:50:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17200` 媒体不存在、`17202` 地点缺失或停用、`17204` 已经可见。
+
+### 8.13 永久删除媒体
+
+```http
+DELETE /admin/media/{mediaId}
+token: <管理员 accessToken>
+```
+
+该操作永久删除媒体、点赞、收藏、下载、足迹、专题、投稿资源关联及 R2 原图/缩略图；收藏夹手动封面会被清空。时光对比删除该媒体后不足两项时，整个时光对比也会删除。此操作不可恢复。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | null | 是 | 固定为 `null` |
+
+```json
+{"code":0,"msg":"媒体及其存储文件已删除","data":null,"timestamp":1787392800000}
+```
+
+主要错误：`17200` 媒体不存在、`17205 / HTTP 502` 存储文件删除失败。
+
+### 8.14 管理员标签列表
+
+```http
+GET /admin/tags?keyword=建筑
+token: <管理员 accessToken>
+```
+
+`keyword` 可选，最长 32 字符，按标签名模糊匹配。接口不分页，按标签名、ID 升序；`mediaCount` 统计所有引用该标签名的媒体，包括隐藏媒体。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | array&lt;object&gt; | 否 | 标签数组 |
+| `data[].id` | number | 否 | 标签 ID |
+| `data[].name` | string | 否 | 标签名称 |
+| `data[].mediaCount` | number | 否 | 引用该标签的媒体数 |
+| `data[].createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"成功","data":[{"id":1,"name":"建筑","mediaCount":36,"createdAt":"2026-08-18T09:00:00","updatedAt":"2026-08-18T09:00:00"}],"timestamp":1787392800000}
+```
+
+### 8.15 创建标签
+
+```http
+POST /admin/tags
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{"name":"建筑"}
+```
+
+`name` 必填、最长 32，后端会去除首尾空白和所有 `|` 字符；规范化后不能为空且不能与现有标签同名。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 新标签 ID |
+| `data.name` | string | 否 | 规范化后的名称 |
+| `data.mediaCount` | number | 否 | 固定从 `0` 开始 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"标签创建成功","data":{"id":1,"name":"建筑","mediaCount":0,"createdAt":"2026-08-22T11:00:00","updatedAt":"2026-08-22T11:00:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17101` 标签名已存在，以及通用字段错误 `400`。
+
+### 8.16 修改标签
+
+```http
+PATCH /admin/tags/{tagId}
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{"name":"校园建筑"}
+```
+
+名称规则同 8.15。改名会同步替换所有媒体（包括隐藏媒体）中的该标签，并对重复标签去重。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`mediaCount` | number | 否 | 标签 ID、改名后的引用数 |
+| `data.name` | string | 否 | 新名称 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"标签修改成功","data":{"id":1,"name":"校园建筑","mediaCount":36,"createdAt":"2026-08-18T09:00:00","updatedAt":"2026-08-22T11:10:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17100` 标签不存在、`17101` 新名称已存在。
+
+### 8.17 合并或删除标签
+
+```http
+POST /admin/tags/{tagId}/merge
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+| 字段 | JSON 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `targetTagId` | number | 否 | 正数目标标签 ID；传 `null` 或省略表示删除源标签，非空表示合并 |
+
+合并会把所有媒体中的源标签替换为目标标签并去重，然后删除源标签；删除则从所有媒体移除源标签。不能合并到自身。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | null | 是 | 固定为 `null` |
+
+```json
+{"code":0,"msg":"标签合并成功","data":null,"timestamp":1787392800000}
+```
+
+`targetTagId` 为空时成功文案为“标签已删除”。主要错误：`17100` 源或目标标签不存在、`17103` 合并到自身。
+
+### 8.18 创建专题
+
+```http
+POST /admin/topics
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `name` | string | 是 | 非空，最长 100 |
+| `slug` | string | 是 | 1～64 位，小写字母或数字开头，只含小写字母、数字、连字符；全局唯一 |
+| `description` | string | 否 | 最长 1000，空白保存为 `null` |
+| `coverUrl` | string | 否 | 最长 1000，数据库直存 URL |
+| `status` | number | 否 | `0` 停用、`1` 启用，默认 `1` |
+| `sortOrder` | number | 否 | 非负，默认 `0` |
+| `mediaIds` | array&lt;number&gt; | 否 | 最多 200 个正数 ID，不得重复；按数组顺序保存，默认空数组 |
+
+```json
+{"name":"校园建筑","slug":"campus-buildings","description":"校园代表性建筑","coverUrl":null,"status":1,"sortOrder":0,"mediaIds":[501,502]}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 专题 ID |
+| `data.name`、`slug` | string | 否 | 名称、标识 |
+| `data.description`、`coverUrl` | string | 是 | 描述、封面地址 |
+| `data.status`、`sortOrder` | number | 否 | 状态、排序值 |
+| `data.mediaIds` | array&lt;number&gt; | 否 | 关联媒体 ID，保持配置顺序 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"专题创建成功","data":{"id":81,"name":"校园建筑","slug":"campus-buildings","description":"校园代表性建筑","coverUrl":null,"status":1,"sortOrder":0,"mediaIds":[501,502],"createdAt":"2026-08-22T11:20:00","updatedAt":"2026-08-22T11:20:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17401` slug 已存在、`17200` 关联媒体不存在，以及通用字段错误 `400`。当前只校验媒体存在，不要求媒体可见。
+
+### 8.19 修改专题
+
+```http
+PATCH /admin/topics/{topicId}
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求字段及约束同 8.18，但全部可选；至少提供一个非 `null` 字段。`mediaIds: []` 清空关联，省略或 `null` 表示不修改；字符串空白可清空描述/封面，但不能清空名称。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 专题 ID |
+| `data.name`、`slug` | string | 否 | 更新后的名称、标识 |
+| `data.description`、`coverUrl` | string | 是 | 描述、封面 |
+| `data.status`、`sortOrder` | number | 否 | 状态、排序值 |
+| `data.mediaIds` | array&lt;number&gt; | 否 | 更新后的媒体 ID 顺序 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+JSON 响应示例：
+
+```json
+{"code":0,"msg":"专题修改成功","data":{"id":81,"name":"校园建筑精选","slug":"campus-buildings","description":"校园代表性建筑","coverUrl":null,"status":1,"sortOrder":1,"mediaIds":[502,501],"createdAt":"2026-08-22T11:20:00","updatedAt":"2026-08-22T11:25:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17400` 专题不存在、`17401` slug 已存在、`17402` 空更新、`17200` 媒体不存在。
+
+### 8.20 创建时光对比
+
+```http
+POST /admin/time-comparisons
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+| 字段路径 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `locationId` | number | 是 | 正数，地点自身必须启用 |
+| `title` | string | 是 | 非空，最长 200 |
+| `description` | string | 否 | 最长 2000，空白保存为 `null` |
+| `status` | number | 否 | `0` 隐藏、`1` 可见，默认 `1` |
+| `items` | array&lt;object&gt; | 是 | 2～20 项，媒体 ID 不能重复 |
+| `items[].mediaId` | number | 是 | 必须是可见且属于 `locationId` 的媒体 |
+| `items[].label` | string | 否 | 最长 100，空白保存为 `null` |
+| `items[].sortOrder` | number | 否 | 非负；省略时使用数组下标，从 `0` 开始 |
+
+```json
+{"locationId":101,"title":"知新楼今昔","description":"不同年代的知新楼","status":1,"items":[{"mediaId":501,"label":"2010年","sortOrder":0},{"mediaId":502,"label":"2026年","sortOrder":1}]}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`locationId` | number | 否 | 对比、地点 ID |
+| `data.title` | string | 否 | 标题 |
+| `data.description` | string | 是 | 描述 |
+| `data.status` | number | 否 | `0/1` |
+| `data.items` | array&lt;object&gt; | 否 | 已创建的对比项 |
+| `data.items[].id`、`mediaId`、`sortOrder` | number | 否 | 对比项 ID、媒体 ID、排序值 |
+| `data.items[].label` | string | 是 | 展示标签 |
+| `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"时光对比创建成功","data":{"id":61,"locationId":101,"title":"知新楼今昔","description":"不同年代的知新楼","status":1,"items":[{"id":601,"mediaId":501,"label":"2010年","sortOrder":0},{"id":602,"mediaId":502,"label":"2026年","sortOrder":1}],"createdAt":"2026-08-22T11:30:00","updatedAt":"2026-08-22T11:30:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17301` 地点不存在或停用、`17300` 媒体不存在/隐藏/不属于该地点，以及重复媒体对应通用 `400`。
 
 ## 9. 健康检查接口及其他代码现状提醒
 
@@ -2967,9 +3817,206 @@ JSON 响应示例：
 
 主要错误：通用路径参数校验错误 `400`、`14000` 仅统一认证正式用户可用。
 
-## 13. 错误码对照
+## 13. 公告与公告管理
 
-### 13.1 通用与认证
+### 13.1 公告列表
+
+```http
+GET /announcements?page=1&size=20
+```
+
+权限：公开。只返回状态为 `PUBLISHED` 且发布时间不晚于当前时间的公告；按置顶优先、`sortOrder` 升序、发布时间和 ID 降序排列。
+
+| 参数 | 类型 | 必填 | 默认值 | 约束 |
+|---|---|---:|---:|---|
+| `page` | number | 否 | `1` | `1～10000` |
+| `size` | number | 否 | `20` | `1～50` |
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total`、`page`、`size` | number | 否 | 分页信息 |
+| `data.items` | array&lt;object&gt; | 否 | 公告摘要数组 |
+| `data.items[].id` | number | 否 | 公告 ID |
+| `data.items[].title` | string | 否 | 标题 |
+| `data.items[].summary` | string | 是 | 摘要 |
+| `data.items[].isPinned` | boolean | 否 | 是否置顶 |
+| `data.items[].publishedAt` | string | 否 | 发布时间 |
+
+```json
+{"code":0,"msg":"成功","data":{"total":2,"page":1,"size":20,"items":[{"id":901,"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","isPinned":true,"publishedAt":"2026-08-22T08:00:00"}]},"timestamp":1787392800000}
+```
+
+主要错误：通用分页参数错误 `400`。
+
+### 13.2 公告详情
+
+```http
+GET /announcements/{announcementId}
+```
+
+权限：公开。只有已经到达发布时间的 `PUBLISHED` 公告可见。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 公告 ID |
+| `data.title` | string | 否 | 标题 |
+| `data.summary` | string | 是 | 摘要 |
+| `data.content` | string | 否 | 公告正文；后端不做 Markdown/HTML 转换 |
+| `data.isPinned` | boolean | 否 | 是否置顶 |
+| `data.publishedAt` | string | 否 | 发布时间 |
+| `data.updatedAt` | string | 是 | 更新时间 |
+
+```json
+{"code":0,"msg":"成功","data":{"id":901,"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","content":"活动详情正文……","isPinned":true,"publishedAt":"2026-08-22T08:00:00","updatedAt":"2026-08-22T08:00:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17000` 公告不存在、未发布、已下线或发布时间未到。
+
+### 13.3 管理员公告列表
+
+```http
+GET /admin/announcements?status=DRAFT&keyword=征集&page=1&size=20
+token: <管理员 accessToken>
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---|---:|---:|---|
+| `status` | string | 否 | - | `DRAFT`、`PUBLISHED`、`OFFLINE`，区分大小写 |
+| `keyword` | string | 否 | - | 最长 100；模糊匹配标题和摘要 |
+| `page` | number | 否 | `1` | `1～10000` |
+| `size` | number | 否 | `20` | `1～50` |
+
+返回所有状态，按更新时间、ID 降序排列。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total`、`page`、`size` | number | 否 | 分页信息 |
+| `data.items` | array&lt;object&gt; | 否 | 管理公告数组 |
+| `data.items[].id` | number | 否 | 公告 ID |
+| `data.items[].title`、`content` | string | 否 | 标题、正文 |
+| `data.items[].summary` | string | 是 | 摘要 |
+| `data.items[].status` | string | 否 | `DRAFT`、`PUBLISHED`、`OFFLINE` |
+| `data.items[].isPinned` | boolean | 否 | 是否置顶 |
+| `data.items[].sortOrder` | number | 否 | 排序值 |
+| `data.items[].publishedAt` | string | 是 | 首次或最近一次发布时间 |
+| `data.items[].createdBy`、`updatedBy` | number | 是 | 创建、更新管理员 ID |
+| `data.items[].createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"成功","data":{"total":1,"page":1,"size":20,"items":[{"id":901,"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","content":"活动详情正文……","status":"DRAFT","isPinned":true,"sortOrder":0,"publishedAt":null,"createdBy":20001,"updatedBy":20001,"createdAt":"2026-08-22T08:00:00","updatedAt":"2026-08-22T08:00:00"}]},"timestamp":1787392800000}
+```
+
+### 13.4 创建公告
+
+```http
+POST /admin/announcements
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `title` | string | 是 | 非空，最长 200，保存时去除首尾空白 |
+| `summary` | string | 否 | 最长 500；空白保存为 `null` |
+| `content` | string | 是 | 非空，最长 50000；正文按原值保存 |
+| `isPinned` | boolean | 否 | 默认 `false` |
+| `sortOrder` | number | 否 | 非负，默认 `0` |
+
+新公告固定创建为 `DRAFT`，不能在创建请求中直接发布。
+
+```json
+{"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","content":"活动详情正文……","isPinned":true,"sortOrder":0}
+```
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 新公告 ID |
+| `data.title`、`content` | string | 否 | 标题、正文 |
+| `data.summary` | string | 是 | 摘要 |
+| `data.status` | string | 否 | 固定为 `DRAFT` |
+| `data.isPinned` | boolean | 否 | 是否置顶 |
+| `data.sortOrder` | number | 否 | 排序值 |
+| `data.publishedAt` | string | 是 | 创建时为 `null` |
+| `data.createdBy`、`updatedBy` | number | 否 | 当前管理员 ID |
+| `data.createdAt`、`updatedAt` | string | 否 | 创建、更新时间 |
+
+```json
+{"code":0,"msg":"公告创建成功","data":{"id":901,"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","content":"活动详情正文……","status":"DRAFT","isPinned":true,"sortOrder":0,"publishedAt":null,"createdBy":20001,"updatedBy":20001,"createdAt":"2026-08-22T08:00:00","updatedAt":"2026-08-22T08:00:00"},"timestamp":1787392800000}
+```
+
+### 13.5 修改公告
+
+```http
+PATCH /admin/announcements/{announcementId}
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求字段与 13.4 相同但全部可选；至少提供一个非 `null` 字段。`summary` 传空白可清为 `null`，标题和正文不能清空。该接口不修改公告状态。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`sortOrder` | number | 否 | 公告 ID、排序值 |
+| `data.title`、`content` | string | 否 | 更新后的标题、正文 |
+| `data.summary` | string | 是 | 摘要 |
+| `data.status` | string | 否 | 当前状态 |
+| `data.isPinned` | boolean | 否 | 是否置顶 |
+| `data.publishedAt` | string | 是 | 发布时间 |
+| `data.createdBy`、`updatedBy` | number | 是 | 操作者 ID |
+| `data.createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+JSON 响应示例：
+
+```json
+{"code":0,"msg":"公告修改成功","data":{"id":901,"title":"校园影像征集活动（更新）","summary":"欢迎提交校园四季影像。","content":"更新后的活动详情正文……","status":"DRAFT","isPinned":true,"sortOrder":0,"publishedAt":null,"createdBy":20001,"updatedBy":20001,"createdAt":"2026-08-22T08:00:00","updatedAt":"2026-08-22T11:50:00"},"timestamp":1787392800000}
+```
+
+主要错误：`17000` 公告不存在、`17002` 空更新，以及通用字段错误 `400`。
+
+### 13.6 发布或下线公告
+
+```http
+POST /admin/announcements/{announcementId}/status
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{"status":"PUBLISHED"}
+```
+
+`status` 必填，接口只接受 `PUBLISHED` 或 `OFFLINE`：草稿和已下线公告可以发布，发布会把 `publishedAt` 更新为当前时间；只有已发布公告可以下线。重复请求当前状态按成功返回。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id`、`sortOrder` | number | 否 | 公告 ID、排序值 |
+| `data.title`、`content` | string | 否 | 标题、正文 |
+| `data.summary` | string | 是 | 摘要 |
+| `data.status` | string | 否 | 变更后的 `PUBLISHED` 或 `OFFLINE` |
+| `data.isPinned` | boolean | 否 | 是否置顶 |
+| `data.publishedAt` | string | 是 | 发布时间；发布成功后非空 |
+| `data.createdBy`、`updatedBy` | number | 是 | 操作者 ID |
+| `data.createdAt`、`updatedAt` | string | 是 | 时间字段 |
+
+```json
+{"code":0,"msg":"公告发布成功","data":{"id":901,"title":"校园影像征集活动","summary":"欢迎提交校园四季影像。","content":"活动详情正文……","status":"PUBLISHED","isPinned":true,"sortOrder":0,"publishedAt":"2026-08-22T12:00:00","createdBy":20001,"updatedBy":20001,"createdAt":"2026-08-22T08:00:00","updatedAt":"2026-08-22T12:00:00"},"timestamp":1787392800000}
+```
+
+下线成功文案为“公告下线成功”。主要错误：`17000` 公告不存在、`17001` 状态转换不允许。
+
+## 14. 错误码对照
+
+### 14.1 通用与认证
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -2987,7 +4034,7 @@ JSON 响应示例：
 | 401 | `10200` | refresh token 无效或已过期 | 需要重新登录 |
 | 500 | `10201` | 凭证轮换失败，请稍后再试 | 并发刷新或 Redis 原子轮换失败；不要继续使用旧 token |
 
-### 13.2 地图
+### 14.2 地图
 
 | HTTP | `code` | 默认 `msg` | 当前使用情况 |
 |---:|---:|---|---|
@@ -2998,7 +4045,7 @@ JSON 响应示例：
 | 400 | `12201` | 地点不属于指定校区 | 已定义，当前接口未抛出 |
 | 400 | `12300` | 地图点位查询必须且只能指定 cityId 或 campusId | 使用中 |
 
-### 13.3 媒体与收藏夹
+### 14.3 媒体与收藏夹
 
 | HTTP | `code` | 默认 `msg` |
 |---:|---:|---|
@@ -3015,7 +4062,7 @@ JSON 响应示例：
 | 403 | `13200` | 当前账号无原图下载权限 |
 | 404 | `13300` | 时光对比不存在或不可见 |
 
-### 13.4 投稿与上传
+### 14.4 投稿与上传
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -3031,7 +4078,7 @@ JSON 响应示例：
 | 400 | `14009` | 上传文件类型不支持 | MIME 或文件魔数不符合要求 |
 | 400 | `19000` | 请求体过大 | 请求在 multipart 解析阶段超过限制 |
 
-### 13.5 搜索、发现与话题
+### 14.5 搜索、发现与话题
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -3039,7 +4086,7 @@ JSON 响应示例：
 | 400 | `15001` | 搜索排序方式不正确 | `sort` 不属于允许值 |
 | 404 | `15100` | 专题不存在或已停用 | 话题详情和话题媒体接口使用；代码枚举文案使用“专题” |
 
-### 13.6 个人中心
+### 14.6 个人中心
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -3054,7 +4101,47 @@ JSON 响应示例：
 | 400 | `16201` | 头像文件过大 | 文件超过 5 MiB |
 | 400 | `16202` | 头像文件类型不支持 | 仅支持 PNG、JPEG、WebP，且 MIME 必须与文件内容一致 |
 
-## 14. 前端接入检查清单
+### 14.7 公告与管理员用户管理
+
+> 当前代码为公告和管理员用户管理重复分配了 `17000～17002`。前端必须结合请求接口解释，不能只按业务码做全局文案映射。
+
+| HTTP | `code` | 默认 `msg` | 使用接口/说明 |
+|---:|---:|---|---|
+| 404 | `17000` | 公告不存在或不可见 | 公告公开详情、后台公告更新/状态接口 |
+| 409 | `17001` | 公告状态不允许执行该操作 | 公告发布或下线状态不合法 |
+| 400 | `17002` | 请至少提供一项需要修改的公告内容 | 公告空更新 |
+| 404 | `17000` | 用户不存在 | 管理员用户详情和修改接口 |
+| 409 | `17001` | 不能修改自己的管理员角色 | 修改用户角色 |
+| 409 | `17002` | 不能停用或冻结自己的账号 | 修改用户状态 |
+| 409 | `17003` | 系统必须至少保留一名可用管理员 | 降级、停用或冻结最后一名正常管理员 |
+| 400 | `17004` | 冻结用户时必须填写冻结原因 | `status = 2` 但原因为空 |
+| 400 | `17005` | 冻结截止时间必须晚于当前时间 | 冻结截止时间缺失或无效 |
+| 400 | `17006` | 请至少提供一项需要修改的用户权限 | 权限空更新 |
+
+### 14.8 标签与管理员分类、资源运维
+
+| HTTP | `code` | 默认 `msg` |
+|---:|---:|---|
+| 404 | `17100` | 标签不存在 |
+| 409 | `17101` | 标签名称已存在 |
+| 400 | `17102` | 请提供需要修改的标签名称 |
+| 409 | `17103` | 标签不能合并到自身 |
+| 404 | `17110` | 地点不存在 |
+| 400 | `17111` | 请至少提供一项需要修改的地点信息 |
+| 400 | `17112` | 目标校区不存在或已停用 |
+| 404 | `17200` | 媒体不存在 |
+| 400 | `17201` | 请至少提供地点或标签分类 |
+| 400 | `17202` | 媒体所属地点不存在或已停用 |
+| 409 | `17203` | 媒体已经处于隐藏状态 |
+| 409 | `17204` | 媒体已经处于可见状态 |
+| 502 | `17205` | 媒体存储文件删除失败 |
+| 400 | `17300` | 时光对比包含不存在或不可用的媒体 |
+| 400 | `17301` | 时光对比地点不存在或已停用 |
+| 404 | `17400` | 专题不存在 |
+| 409 | `17401` | 专题标识已存在 |
+| 400 | `17402` | 请至少提供一项需要修改的专题信息 |
+
+## 15. 前端接入检查清单
 
 - 使用环境变量维护 `BASE_URL`，不要根据 Controller 注释硬编码 `/api/v1`。
 - 请求头名称使用小写或原样 `token`，值只放 JWT，不加 `Bearer `。
@@ -3063,11 +4150,14 @@ JSON 响应示例：
 - 公开媒体详情需要展示用户互动状态时携带有效 token；未登录时按 `false` 处理。
 - 所有接口先检查 HTTP 状态，再检查 `code === 0`，不要依赖 `msg` 文案。
 - 枚举传英文大写名称，尤其是 `SubmissionStatus`。
-- 投稿使用多值 FormData 字段；不手动写 multipart boundary。
+- 投稿使用多值 FormData 字段；创建投稿传 `tagIds`，修改投稿当前仍传 `tags`，文件均传 `files`；不手动写 multipart boundary。
 - 头像使用字段名为 `file` 的 FormData 上传；限制为 PNG、JPEG、WebP 和 5 MiB。
 - 预签名 URL（包括媒体、投稿预览、头像和下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
 - 修改密码成功后立即清除本地 access token 和 refresh token，并引导用户重新登录。
 - 浏览足迹的 `size` 最大按 50 返回；清空和单条删除均按幂等成功处理。
 - 搜索排序值使用 `relevance`、`newest`、`oldest`、`hot`；搜索建议的 `TAG` 类型没有 ID。
 - 批量收藏操作的 `action` 使用大写 `ADD`、`REMOVE`、`MOVE`；`requestedCount` 是媒体 ID 去重后的数量。
+- 管理员用户接口的 `role/status` 使用数字编码；公告状态使用大写字符串 `DRAFT/PUBLISHED/OFFLINE`。
+- 管理员永久删除媒体会同时删除业务关联和存储文件，前端应增加不可恢复确认。
+- `17000～17002` 当前在公告和管理员用户模块间冲突，错误展示必须结合请求接口。
 - 可用 `/ping/public` 做免登录存活检查，用 `/ping/auth`、`/ping/admin` 分别检查登录和管理员鉴权链路。

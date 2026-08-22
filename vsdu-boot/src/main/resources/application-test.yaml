@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql:3306/vsdu-db
+    username: ${VSDU_MYSQL_USERNAME}
+    password: ${VSDU_MYSQL_PASSWORD}
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${VSDU_REDIS_PASSWORD}
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
