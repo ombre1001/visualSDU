@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,6 +25,31 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public <T> ResponseEntity<Result<T>> handleNoResourceFoundException(
+            NoResourceFoundException ne,
+            HttpServletRequest request
+    ) {
+        log.warn(
+                "访问了不存在的接口或静态资源 | 试图访问路径：{} {} | ip：{}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getRemoteAddr()
+        );
+
+        return ResponseEntity
+                .status(BizCode.BAD_REQUEST.getHttpStatusCode())
+                .body(
+                        Result.error(
+                                BizCode.BAD_REQUEST,
+                                String.format("不存在的接口或静态资源：%s %s",
+                                        request.getMethod(),
+                                        request.getRequestURI()
+                                )
+                        )
+                );
+    }
 
     /**
      * 处理请求方法不支持异常
