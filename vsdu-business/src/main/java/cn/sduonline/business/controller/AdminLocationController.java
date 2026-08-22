@@ -19,12 +19,20 @@ import org.springframework.web.bind.annotation.*;
 public class AdminLocationController {
     private final AdminLocationService service;
 
+    /**
+     * 创建地点
+     * 在指定校区下创建地点并配置其基础信息。
+     */
     @AdminApi
     @PostMapping
     public Result<AdminLocationVO> create(@Valid @RequestBody AdminCreateLocationRequest request) {
         return Result.success(service.create(request), "地点创建成功");
     }
 
+    /**
+     * 修改地点
+     * 修改指定地点的基础信息或启用状态。
+     */
     @AdminApi
     @PatchMapping("/{locationId}")
     public Result<AdminLocationVO> update(@PathVariable @Positive Long locationId,

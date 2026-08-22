@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ping")
 public class PingController {
 
+    /**
+     * 公开健康检查
+     * 检查无需登录即可访问的服务链路。
+     */
     @PublicApi
     @GetMapping("/public")
     public Result<Void> publicPing() {
@@ -21,6 +25,10 @@ public class PingController {
         );
     }
 
+    /**
+     * 登录健康检查
+     * 检查访问令牌鉴权及当前用户上下文是否正常。
+     */
     @GetMapping("/auth")
     public Result<Void> authPing() {
         return Result.success(null, "auth ping successfully. Welcome, "
@@ -28,6 +36,10 @@ public class PingController {
                 + CurrentUser.id() + " !");
     }
 
+    /**
+     * 管理员健康检查
+     * 检查管理员鉴权及当前管理员上下文是否正常。
+     */
     @AdminApi
     @GetMapping("/admin")
     public Result<Void> adminPing() {

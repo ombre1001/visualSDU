@@ -19,12 +19,20 @@ import org.springframework.web.bind.annotation.*;
 public class AdminTopicController {
     private final AdminTopicService service;
 
+    /**
+     * 创建专题
+     * 创建专题并配置其展示信息和关联媒体。
+     */
     @AdminApi
     @PostMapping
     public Result<AdminTopicVO> create(@Valid @RequestBody AdminCreateTopicRequest request) {
         return Result.success(service.create(request), "专题创建成功");
     }
 
+    /**
+     * 修改专题
+     * 修改指定专题的展示信息、状态和关联媒体。
+     */
     @AdminApi
     @PatchMapping("/{topicId}")
     public Result<AdminTopicVO> update(@PathVariable @Positive Long topicId,

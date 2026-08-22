@@ -21,7 +21,7 @@ public class MapController {
     private final MapService mapService;
 
     /**
-     * 地图点位。
+     * 地图点位
      * <p>
      * 查询城市下校区：
      * GET /api/v1/map/markers?cityId=1

@@ -23,18 +23,30 @@ import java.util.List;
 public class AdminTagController {
     private final AdminTagService service;
 
+    /**
+     * 管理员标签列表
+     * 查询标签及其关联媒体数量，可按名称关键词筛选。
+     */
     @AdminApi
     @GetMapping
     public Result<List<AdminTagVO>> list(@RequestParam(required = false) @Size(max = 32) String keyword) {
         return Result.success(service.list(keyword));
     }
 
+    /**
+     * 创建标签
+     * 创建一个名称唯一的媒体标签。
+     */
     @AdminApi
     @PostMapping
     public Result<AdminTagVO> create(@Valid @RequestBody AdminCreateTagRequest request) {
         return Result.success(service.create(request.name()), "标签创建成功");
     }
 
+    /**
+     * 修改标签
+     * 修改指定标签的名称。
+     */
     @AdminApi
     @PatchMapping("/{tagId}")
     public Result<AdminTagVO> update(@PathVariable @Positive Long tagId,
@@ -42,6 +54,10 @@ public class AdminTagController {
         return Result.success(service.update(tagId, request.name()), "标签修改成功");
     }
 
+    /**
+     * 合并或删除标签
+     * 传入目标标签时合并标签，不传目标标签时删除源标签。
+     */
     @AdminApi
     @PostMapping("/{tagId}/merge")
     public Result<Void> merge(@PathVariable @Positive Long tagId,

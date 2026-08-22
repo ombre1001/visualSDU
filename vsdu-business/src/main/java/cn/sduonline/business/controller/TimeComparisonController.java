@@ -16,6 +16,10 @@ import java.util.List;
 public class TimeComparisonController {
     private final TimeComparisonService timeComparisonService;
 
+    /**
+     * 时光对比列表
+     * 按可选地点筛选可见的时光对比摘要。
+     */
     @GetMapping
     public Result<List<TimeComparisonSummaryVO>> list(
             @RequestParam(required = false) Long locationId,
@@ -24,6 +28,10 @@ public class TimeComparisonController {
         return Result.success(timeComparisonService.list(locationId, size));
     }
 
+    /**
+     * 时光对比详情
+     * 查询指定时光对比及其按展示顺序排列的媒体项。
+     */
     @GetMapping("/{comparisonId}")
     public Result<TimeComparisonDetailVO> detail(@PathVariable Long comparisonId) {
         Long userId = CurrentUser.isLogin() ? CurrentUser.id() : null;

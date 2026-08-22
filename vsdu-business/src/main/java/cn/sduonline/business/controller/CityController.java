@@ -23,7 +23,7 @@ public class CityController {
     private final CampusService campusService;
 
     /**
-     * 城市列表。
+     * 城市列表
      */
     @PublicApi
     @GetMapping
@@ -35,7 +35,7 @@ public class CityController {
     }
 
     /**
-     * 城市下校区列表。
+     * 城市下校区列表
      */
     @PublicApi
     @GetMapping("/{cityId}/campuses")

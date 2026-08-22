@@ -20,7 +20,7 @@ public class CampusController {
     private final LocationService locationService;
 
     /**
-     * 校区详情。
+     * 校区详情
      */
     @PublicApi
     @GetMapping("/{campusId}")
@@ -34,7 +34,7 @@ public class CampusController {
     }
 
     /**
-     * 校区地点列表。
+     * 校区地点列表
      * <p>
      * categoryCode可以不传。
      */

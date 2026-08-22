@@ -20,6 +20,10 @@ public class AnnouncementController {
 
     private final AnnouncementService announcementService;
 
+    /**
+     * 公告列表
+     * 分页查询当前有效且已发布的公告摘要。
+     */
     @PublicApi
     @GetMapping
     public Result<PageResult<AnnouncementSummaryVO>> list(
@@ -36,6 +40,10 @@ public class AnnouncementController {
         return Result.success(announcementService.listPublished(page, size));
     }
 
+    /**
+     * 公告详情
+     * 查询当前有效且已发布的指定公告。
+     */
     @PublicApi
     @GetMapping("/{announcementId}")
     public Result<AnnouncementDetailVO> detail(

@@ -24,7 +24,7 @@ public class SearchController {
     private final SearchService searchService;
 
     /**
-     * 搜索建议。
+     * 搜索建议
      * <p>
      * 推荐请求：
      * GET /search/suggestions?keyword=中心校区&limit=10
@@ -72,7 +72,7 @@ public class SearchController {
     }
 
     /**
-     * 媒体综合搜索。
+     * 媒体综合搜索
      */
     @PublicApi
     @GetMapping("/media")

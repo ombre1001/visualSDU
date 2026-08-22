@@ -18,6 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminSubmissionReviewSettingController {
     private final SubmissionReviewSettingService settingService;
 
+    /**
+     * 更新投稿审核开关
+     * 设置新投稿是否需要管理员审核后才能发布。
+     */
     @AdminApi
     @PutMapping
     public Result<SubmissionReviewSettingVO> update(

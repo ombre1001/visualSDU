@@ -17,6 +17,10 @@ public class DiscoveryController {
 
     private final DiscoveryService discoveryService;
 
+    /**
+     * 发现首页
+     * 聚合热门标签、最新媒体和校区内容；不传城市 ID 时查询全部城市。
+     */
     @PublicApi
     @GetMapping("/home")
     public Result<DiscoveryHomeVO> home(

@@ -24,7 +24,7 @@ public class FavoriteFolderController {
     private final FavoriteFolderService favoriteFolderService;
 
     /**
-     * 查询当前用户的收藏夹。
+     * 查询当前用户的收藏夹
      * <p>
      * 不加@PublicApi，因此必须登录。
      */
@@ -36,7 +36,7 @@ public class FavoriteFolderController {
     }
 
     /**
-     * 创建收藏夹。
+     * 创建收藏夹
      */
     @PostMapping
     public Result<FavoriteFolderVO> createFolder(
@@ -49,7 +49,7 @@ public class FavoriteFolderController {
     }
 
     /**
-     * 修改收藏夹。
+     * 修改收藏夹
      */
     @PatchMapping("/{folderId}")
     public Result<FavoriteFolderVO> updateFolder(
@@ -68,7 +68,7 @@ public class FavoriteFolderController {
     }
 
     /**
-     * 删除收藏夹。
+     * 删除收藏夹
      */
     @DeleteMapping("/{folderId}")
     public Result<Void> deleteFolder(
@@ -81,7 +81,7 @@ public class FavoriteFolderController {
     }
 
     /**
-     * 分页查询收藏夹内容。
+     * 分页查询收藏夹内容
      */
     @GetMapping("/{folderId}/items")
     public Result<PageResult<MediaSummaryVO>> listFolderItems(

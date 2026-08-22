@@ -28,6 +28,10 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
 
+    /**
+     * 管理员用户列表
+     * 按关键词、角色和状态分页筛选用户。
+     */
     @AdminApi
     @GetMapping
     public Result<PageResult<AdminUserVO>> list(
@@ -47,6 +51,10 @@ public class AdminUserController {
         return Result.success(adminUserService.list(keyword, userRole, userStatus, page, size));
     }
 
+    /**
+     * 管理员用户详情
+     * 查询指定用户的资料、角色、状态和功能权限。
+     */
     @AdminApi
     @GetMapping("/{userId}")
     public Result<AdminUserVO> detail(
@@ -55,6 +63,10 @@ public class AdminUserController {
         return Result.success(adminUserService.detail(userId));
     }
 
+    /**
+     * 修改用户角色
+     * 将指定用户设置为普通用户或管理员。
+     */
     @AdminApi
     @PatchMapping("/{userId}/role")
     public Result<AdminUserVO> updateRole(
@@ -67,6 +79,10 @@ public class AdminUserController {
         return Result.success(result, "用户角色修改成功");
     }
 
+    /**
+     * 修改用户状态
+     * 设置用户为正常、冻结或停用，并可记录冻结期限及原因。
+     */
     @AdminApi
     @PatchMapping("/{userId}/status")
     public Result<AdminUserVO> updateStatus(
@@ -80,6 +96,10 @@ public class AdminUserController {
         return Result.success(result, "用户状态修改成功");
     }
 
+    /**
+     * 修改用户功能权限
+     * 更新指定用户的投稿、下载等功能权限。
+     */
     @AdminApi
     @PatchMapping("/{userId}/permissions")
     public Result<AdminUserVO> updatePermissions(

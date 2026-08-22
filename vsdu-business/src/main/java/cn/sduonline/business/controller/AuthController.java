@@ -33,12 +33,20 @@ public class AuthController {
         return Result.success(authService.sdupassLogin(code));
     }
 
+    /**
+     * 刷新令牌
+     * 使用 refresh token 轮换签发一对新令牌；前端必须同时替换本地的 access token 和 refresh token。
+     */
     @PublicApi
     @PostMapping("/refresh")
     public Result<AuthResponse> refresh(@RequestBody @Validated RefreshTokenRequest refreshTokenRequest) {
         return Result.success(authService.refresh(refreshTokenRequest));
     }
 
+    /**
+     * 退出登录
+     * 注销属于当前用户的 refresh token 并使已有访问凭证失效；成功后前端应清理本地凭证。
+     */
     @DeleteMapping("/logout")
     public Result<Void> logout(@RequestBody @Validated RefreshTokenRequest refreshTokenRequest) {
         authService.logout(refreshTokenRequest);

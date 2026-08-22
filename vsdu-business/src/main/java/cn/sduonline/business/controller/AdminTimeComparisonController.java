@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.*;
 public class AdminTimeComparisonController {
     private final AdminTimeComparisonService service;
 
+    /**
+     * 创建时光对比
+     * 创建一组同一地点不同时间的媒体对比项。
+     */
     @AdminApi
     @PostMapping
     public Result<AdminTimeComparisonVO> create(@Valid @RequestBody AdminCreateTimeComparisonRequest request) {

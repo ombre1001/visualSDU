@@ -19,7 +19,7 @@ public class FavoriteController {
     private final FavoriteFolderService favoriteFolderService;
 
     /**
-     * 批量管理收藏。
+     * 批量管理收藏
      * <p>
      * 不加@PublicApi，因此必须登录。
      */

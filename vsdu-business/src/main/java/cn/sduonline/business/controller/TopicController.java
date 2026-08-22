@@ -19,12 +19,20 @@ public class TopicController {
 
     private final TopicService topicService;
 
+    /**
+     * 话题列表
+     * 查询全部启用话题的摘要信息。
+     */
     @PublicApi
     @GetMapping
     public Result<List<TopicSummaryVO>> list() {
         return Result.success(topicService.list());
     }
 
+    /**
+     * 话题详情
+     * 查询指定启用话题的详情。
+     */
     @PublicApi
     @GetMapping("/{topicId}")
     public Result<TopicDetailVO> detail(
@@ -35,6 +43,10 @@ public class TopicController {
         );
     }
 
+    /**
+     * 话题媒体
+     * 分页查询指定启用话题下的可见媒体。
+     */
     @PublicApi
     @GetMapping("/{topicId}/media")
     public Result<PageResult<MediaSummaryVO>> media(

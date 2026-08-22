@@ -21,28 +21,48 @@ import java.util.List;
 public class MediaController {
     private final MediaService mediaService;
 
+    /**
+     * 媒体详情
+     * 查询可见媒体的详情；携带有效令牌时同时返回当前用户的点赞和收藏状态。
+     */
     @PublicApi
     @GetMapping("/{mediaId}")
     public Result<MediaDetailVO> detail(@PathVariable Long mediaId) {
         return Result.success(mediaService.detail(mediaId, optionalUserId()));
     }
 
+    /**
+     * 记录一次浏览
+     * 增加媒体浏览量，登录用户还会新增或更新浏览足迹；前端应避免重复调用造成重复计数。
+     */
     @PublicApi
     @PostMapping("/{mediaId}/views")
     public Result<MediaInteractionVO> recordView(@PathVariable Long mediaId) {
         return Result.success(mediaService.recordView(mediaId, optionalUserId()));
     }
 
+    /**
+     * 点赞
+     * 为当前用户点赞指定媒体并返回最新互动状态。
+     */
     @PostMapping("/{mediaId}/likes")
     public Result<MediaInteractionVO> like(@PathVariable Long mediaId) {
         return Result.success(mediaService.like(CurrentUser.id(), mediaId), "点赞成功");
     }
 
+    /**
+     * 取消点赞
+     * 取消当前用户对指定媒体的点赞并返回最新互动状态。
+     */
     @DeleteMapping("/{mediaId}/likes")
     public Result<MediaInteractionVO> unlike(@PathVariable Long mediaId) {
         return Result.success(mediaService.unlike(CurrentUser.id(), mediaId), "已取消点赞");
     }
 
+    /**
+     * 收藏
+     * 将媒体加入指定收藏夹；不传请求体或收藏夹 ID 时使用默认收藏夹。
+     */
     @PostMapping("/{mediaId}/favorites")
     public Result<MediaInteractionVO> favorite(
             @PathVariable Long mediaId,
@@ -52,16 +72,28 @@ public class MediaController {
         return Result.success(mediaService.favorite(CurrentUser.id(), mediaId, folderId), "收藏成功");
     }
 
+    /**
+     * 取消收藏
+     * 删除当前用户对指定媒体的全部收藏关系，而非仅从某个收藏夹移除。
+     */
     @DeleteMapping("/{mediaId}/favorites")
     public Result<MediaInteractionVO> unfavorite(@PathVariable Long mediaId) {
         return Result.success(mediaService.unfavorite(CurrentUser.id(), mediaId), "已取消收藏");
     }
 
+    /**
+     * 请求原图下载
+     * 为允许下载的媒体生成短期有效的原图下载地址，前端不应长期缓存该地址。
+     */
     @PostMapping("/{mediaId}/downloads")
     public Result<MediaDownloadVO> requestDownload(@PathVariable Long mediaId) {
         return Result.success(mediaService.requestDownload(CurrentUser.id(), mediaId), "下载地址已生成");
     }
 
+    /**
+     * 相关媒体
+     * 按地点和标签相关性查询指定媒体的相关推荐。
+     */
     @PublicApi
     @GetMapping("/{mediaId}/related")
     public Result<List<MediaSummaryVO>> related(

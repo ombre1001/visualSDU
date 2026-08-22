@@ -24,7 +24,7 @@ public class LocationController {
     private final LocationService locationService;
 
     /**
-     * 地点详情。
+     * 地点详情
      */
     @PublicApi
     @GetMapping("/{locationId}")
@@ -40,7 +40,7 @@ public class LocationController {
     }
 
     /**
-     * 地点下的媒体资源。
+     * 地点下的媒体资源
      */
     @PublicApi
     @GetMapping("/{locationId}/media")

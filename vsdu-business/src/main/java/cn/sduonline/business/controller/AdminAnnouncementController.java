@@ -25,6 +25,10 @@ public class AdminAnnouncementController {
 
     private final AnnouncementService announcementService;
 
+    /**
+     * 管理员公告列表
+     * 按状态和关键词分页查询全部公告。
+     */
     @AdminApi
     @GetMapping
     public Result<PageResult<AdminAnnouncementVO>> list(
@@ -49,6 +53,10 @@ public class AdminAnnouncementController {
         );
     }
 
+    /**
+     * 创建公告
+     * 创建一条草稿公告，发布需另行调用状态切换接口。
+     */
     @AdminApi
     @PostMapping
     public Result<AdminAnnouncementVO> create(
@@ -60,6 +68,10 @@ public class AdminAnnouncementController {
         );
     }
 
+    /**
+     * 修改公告
+     * 修改指定公告的标题、摘要、正文、置顶及排序信息。
+     */
     @AdminApi
     @PatchMapping("/{announcementId}")
     public Result<AdminAnnouncementVO> update(
@@ -75,6 +87,10 @@ public class AdminAnnouncementController {
         );
     }
 
+    /**
+     * 发布或下线公告
+     * 将指定公告切换为已发布或已下线状态。
+     */
     @AdminApi
     @PostMapping("/{announcementId}/status")
     public Result<AdminAnnouncementVO> changeStatus(

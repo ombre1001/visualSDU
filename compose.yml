@@ -12,6 +12,8 @@ services:
 
     environment:
       SPRING_PROFILES_ACTIVE: test
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
 
     depends_on:
       - mysql
@@ -28,10 +30,14 @@ services:
     restart: unless-stopped
 
     environment:
+      TZ: Asia/Shanghai
       MYSQL_DATABASE: vsdu-db
       MYSQL_USER: ${VSDU_MYSQL_USERNAME}
       MYSQL_PASSWORD: ${VSDU_MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+    command:
+      - --default-time-zone=+08:00
 
     volumes:
       - mysql-data:/var/lib/mysql
@@ -43,6 +49,9 @@ services:
 
     container_name: visual-sdu-redis
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Shanghai
 
     command:
       - redis-server
