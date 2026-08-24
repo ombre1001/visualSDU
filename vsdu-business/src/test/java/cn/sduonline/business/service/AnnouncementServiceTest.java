@@ -18,9 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AnnouncementServiceTest {
@@ -38,7 +36,7 @@ class AnnouncementServiceTest {
 
     @Test
     void createShouldInitializeDraftAndAuditFields() {
-        CurrentUser.setDetail(7L, UserRole.ADMIN);
+        CurrentUser.setUserDetail(7L, UserRole.ADMIN);
         doAnswer(invocation -> {
             Announcement announcement = invocation.getArgument(0);
             announcement.setId(11L);
@@ -71,7 +69,7 @@ class AnnouncementServiceTest {
 
     @Test
     void changeStatusShouldPublishDraft() {
-        CurrentUser.setDetail(8L, UserRole.ADMIN);
+        CurrentUser.setUserDetail(8L, UserRole.ADMIN);
         Announcement announcement = announcement(AnnouncementStatus.DRAFT);
         when(announcementMapper.selectById(1L)).thenReturn(announcement);
 
@@ -88,7 +86,7 @@ class AnnouncementServiceTest {
 
     @Test
     void changeStatusShouldRejectTakingDraftOffline() {
-        CurrentUser.setDetail(8L, UserRole.ADMIN);
+        CurrentUser.setUserDetail(8L, UserRole.ADMIN);
         when(announcementMapper.selectById(1L))
                 .thenReturn(announcement(AnnouncementStatus.DRAFT));
 

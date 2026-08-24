@@ -1,7 +1,7 @@
 package cn.sduonline.business.mapper;
 
-import cn.sduonline.business.data.projection.SubmissionSummaryRow;
 import cn.sduonline.business.data.po.Submission;
+import cn.sduonline.business.data.projection.SubmissionSummaryRow;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

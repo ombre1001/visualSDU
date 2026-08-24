@@ -1,9 +1,9 @@
 package cn.sduonline.business.mapper;
 
+import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.projection.MediaSummaryRow;
 import cn.sduonline.business.data.projection.MediaTagPatch;
 import cn.sduonline.business.data.projection.SearchSuggestionRow;
-import cn.sduonline.business.data.po.Media;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

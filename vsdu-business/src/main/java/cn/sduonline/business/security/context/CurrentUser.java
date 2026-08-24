@@ -11,7 +11,7 @@ public final class CurrentUser {
     private CurrentUser() {
     }
 
-    public static void setDetail(Long userId, UserRole userRole) {
+    public static void setUserDetail(Long userId, UserRole userRole) {
         currentUser.set(
                 new CurrentUserDetails(userId, userRole)
         );

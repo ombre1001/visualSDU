@@ -1,7 +1,7 @@
 package cn.sduonline.business.mapper;
 
-import cn.sduonline.business.data.projection.TimeComparisonSummaryRow;
 import cn.sduonline.business.data.po.TimeComparison;
+import cn.sduonline.business.data.projection.TimeComparisonSummaryRow;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

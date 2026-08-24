@@ -7,6 +7,9 @@ spring:
       max-file-size: 20MB
       max-request-size: 120MB
 
+server:
+  forward-headers-strategy: native
+
 mybatis-plus:
   mapper-locations: classpath*:/mapper/*.xml
   type-aliases-package: cn.sduonline.business.data.po
@@ -25,6 +28,10 @@ vsdu:
       local-secret: ${JWT_SECRET}
       access-token-expire-seconds: 3600
       refresh-token-expire-seconds: 604800
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-N/A}] [ip=%X{ip:-N/A}]"
 
 cloudflare:
   r2:

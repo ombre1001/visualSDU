@@ -1,10 +1,10 @@
 package cn.sduonline.business.service;
 
-import cn.sduonline.business.data.projection.MediaSummaryRow;
-import cn.sduonline.business.data.projection.TimeComparisonSummaryRow;
 import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.TimeComparison;
 import cn.sduonline.business.data.po.TimeComparisonItem;
+import cn.sduonline.business.data.projection.MediaSummaryRow;
+import cn.sduonline.business.data.projection.TimeComparisonSummaryRow;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.data.vo.TimeComparisonDetailVO;
 import cn.sduonline.business.data.vo.TimeComparisonSummaryVO;
@@ -17,8 +17,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service

@@ -1,7 +1,7 @@
 package cn.sduonline.business.mapper;
 
-import cn.sduonline.business.data.projection.CitySummaryRow;
 import cn.sduonline.business.data.po.City;
+import cn.sduonline.business.data.projection.CitySummaryRow;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 

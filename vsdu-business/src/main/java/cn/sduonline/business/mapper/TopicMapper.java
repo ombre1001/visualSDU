@@ -1,8 +1,8 @@
 package cn.sduonline.business.mapper;
 
 import cn.sduonline.business.data.dto.AdminUpdateTopicRequest;
-import cn.sduonline.business.data.projection.TopicSummaryRow;
 import cn.sduonline.business.data.po.Topic;
+import cn.sduonline.business.data.projection.TopicSummaryRow;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

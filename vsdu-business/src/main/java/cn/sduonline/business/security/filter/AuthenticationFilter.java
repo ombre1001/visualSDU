@@ -85,7 +85,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                     loadTokenVersion(payload.userId())
             )) throw new BizException(BizCode.AUTH_ACCESS_TOKEN_INVALID);
 
-            CurrentUser.setDetail(
+            CurrentUser.setUserDetail(
                     payload.userId(),
                     UserRole.valueOf(payload.role())
             );
