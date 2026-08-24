@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 create table announcement
 (
     id           bigint auto_increment comment '公告ID'
