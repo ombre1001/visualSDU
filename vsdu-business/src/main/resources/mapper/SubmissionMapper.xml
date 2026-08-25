@@ -49,4 +49,185 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <sql id="adminConditions">
+        WHERE s.deleted = 0
+        <if test="status != null">
+            AND s.status = #{status}
+        </if>
+        <if test="userId != null">
+            AND s.user_id = #{userId}
+        </if>
+        <if test="locationId != null">
+            AND s.location_id = #{locationId}
+        </if>
+        <if test="submittedFrom != null">
+            AND s.submitted_at <![CDATA[>=]]> #{submittedFrom}
+        </if>
+        <if test="submittedTo != null">
+            AND s.submitted_at <![CDATA[<=]]> #{submittedTo}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                s.description LIKE CONCAT('%', #{keyword}, '%')
+                OR s.tags LIKE CONCAT('%', #{keyword}, '%')
+                OR u.phone LIKE CONCAT('%', #{keyword}, '%')
+                OR u.cas_id LIKE CONCAT('%', #{keyword}, '%')
+                OR u.name LIKE CONCAT('%', #{keyword}, '%')
+                OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <select id="countAdminSubmissions" resultType="long">
+        SELECT COUNT(*)
+        FROM submission s
+        INNER JOIN `user` u ON u.id = s.user_id
+        <include refid="adminConditions"/>
+    </select>
+
+    <select id="selectAdminSubmissionPage"
+            resultType="cn.sduonline.business.data.projection.AdminSubmissionSummaryRow">
+        SELECT
+            s.id,
+            s.user_id,
+            COALESCE(NULLIF(u.nickname, ''), NULLIF(u.name, ''), u.cas_id, CONCAT('用户', u.id)) AS uploader_name,
+            s.location_id,
+            l.name AS location_name,
+            s.description,
+            s.shot_at,
+            s.tags,
+            s.status,
+            s.review_reason,
+            (
+                SELECT COUNT(*)
+                FROM submission_asset count_asset
+                WHERE count_asset.submission_id = s.id
+            ) AS asset_count,
+            (
+                SELECT cover_asset.object_key
+                FROM submission_asset cover_asset
+                WHERE cover_asset.submission_id = s.id
+                ORDER BY cover_asset.sort_order, cover_asset.id
+                LIMIT 1
+            ) AS cover_key,
+            s.submitted_at,
+            s.reviewed_at,
+            s.updated_at,
+            s.version
+        FROM submission s
+        INNER JOIN `user` u ON u.id = s.user_id
+        LEFT JOIN location l ON l.id = s.location_id
+        <include refid="adminConditions"/>
+        <choose>
+            <when test="sort == 'newest'">
+                ORDER BY s.submitted_at DESC, s.id DESC
+            </when>
+            <otherwise>
+                ORDER BY s.submitted_at ASC, s.id ASC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectAdminSubmissionDetail"
+            resultType="cn.sduonline.business.data.projection.AdminSubmissionDetailRow">
+        SELECT
+            s.id,
+            s.user_id,
+            u.cas_id AS uploader_cas_id,
+            u.name AS uploader_name,
+            u.nickname AS uploader_nickname,
+            u.avatar_key AS uploader_avatar_key,
+            (
+                SELECT COUNT(*)
+                FROM submission user_submission
+                WHERE user_submission.user_id = s.user_id
+                  AND user_submission.deleted = 0
+            ) AS uploader_submission_count,
+            (
+                SELECT COUNT(*)
+                FROM submission approved_submission
+                WHERE approved_submission.user_id = s.user_id
+                  AND approved_submission.deleted = 0
+                  AND approved_submission.status = 1
+            ) AS uploader_approved_count,
+            s.location_id,
+            l.name AS location_name,
+            s.description,
+            s.shot_at,
+            s.tags,
+            s.status,
+            s.review_reason,
+            s.submitted_at,
+            s.reviewed_by,
+            COALESCE(NULLIF(reviewer.nickname, ''), NULLIF(reviewer.name, ''), reviewer.cas_id) AS reviewer_name,
+            s.reviewed_at,
+            s.created_at,
+            s.updated_at,
+            s.version
+        FROM submission s
+        INNER JOIN `user` u ON u.id = s.user_id
+        LEFT JOIN location l ON l.id = s.location_id
+        LEFT JOIN `user` reviewer ON reviewer.id = s.reviewed_by
+        WHERE s.id = #{submissionId}
+          AND s.deleted = 0
+    </select>
+
+    <update id="updateReviewWithVersion">
+        UPDATE submission
+        SET status = #{afterStatus},
+            review_reason = #{reviewReason},
+            reviewed_by = #{reviewedBy},
+            reviewed_at = #{reviewedAt},
+            updated_at = #{reviewedAt},
+            version = version + 1
+        WHERE id = #{submissionId}
+          AND deleted = 0
+          AND status = #{beforeStatus}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="updateEditableWithVersion">
+        UPDATE submission
+        SET location_id = #{submission.locationId},
+            description = #{submission.description},
+            shot_at = #{submission.shotAt},
+            tags = #{submission.tags},
+            updated_at = #{submission.updatedAt},
+            version = version + 1
+        WHERE id = #{submission.id}
+          AND user_id = #{submission.userId}
+          AND deleted = 0
+          AND status = #{expectedStatus}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="resubmitWithVersion">
+        UPDATE submission
+        SET status = #{afterStatus},
+            review_reason = NULL,
+            reviewed_by = NULL,
+            reviewed_at = #{reviewedAt},
+            submitted_at = #{submittedAt},
+            updated_at = #{submittedAt},
+            version = version + 1
+        WHERE id = #{submissionId}
+          AND user_id = #{userId}
+          AND deleted = 0
+          AND status = 2
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="withdrawWithVersion">
+        UPDATE submission
+        SET status = 3,
+            updated_at = #{updatedAt},
+            version = version + 1
+        WHERE id = #{submissionId}
+          AND user_id = #{userId}
+          AND deleted = 0
+          AND status = 0
+          AND version = #{expectedVersion}
+    </update>
+
 </mapper>

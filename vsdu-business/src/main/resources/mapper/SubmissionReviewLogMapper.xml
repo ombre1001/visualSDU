@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.SubmissionReviewLogMapper">
+
+    <sql id="allColumns">
+        id, submission_id, round_no, submission_version,
+        decision, reason, before_status, after_status,
+        reviewed_by, reviewed_at
+    </sql>
+
+    <select id="selectBySubmissionAndVersion"
+            resultType="cn.sduonline.business.data.po.SubmissionReviewLog">
+        SELECT <include refid="allColumns"/>
+        FROM submission_review_log
+        WHERE submission_id = #{submissionId}
+          AND submission_version = #{submissionVersion}
+        LIMIT 1
+    </select>
+
+    <select id="selectNextRoundNo" resultType="int">
+        SELECT COALESCE(MAX(round_no), 0) + 1
+        FROM submission_review_log
+        WHERE submission_id = #{submissionId}
+    </select>
+
+    <select id="countBySubmission" resultType="long">
+        SELECT COUNT(*)
+        FROM submission_review_log
+        WHERE submission_id = #{submissionId}
+    </select>
+
+    <select id="selectPageBySubmission"
+            resultType="cn.sduonline.business.data.projection.AdminSubmissionReviewLogRow">
+        SELECT
+            log.id,
+            log.submission_id,
+            log.round_no,
+            log.submission_version,
+            log.decision,
+            log.reason,
+            log.before_status,
+            log.after_status,
+            log.reviewed_by,
+            COALESCE(NULLIF(reviewer.nickname, ''), NULLIF(reviewer.name, ''), reviewer.cas_id) AS reviewer_name,
+            log.reviewed_at
+        FROM submission_review_log log
+        LEFT JOIN `user` reviewer ON reviewer.id = log.reviewed_by
+        WHERE log.submission_id = #{submissionId}
+        ORDER BY log.round_no DESC, log.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+</mapper>

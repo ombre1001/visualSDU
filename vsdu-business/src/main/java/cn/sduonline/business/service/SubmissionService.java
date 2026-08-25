@@ -40,11 +40,11 @@ public class SubmissionService {
 
     private final SubmissionMapper submissionMapper;
     private final SubmissionAssetMapper assetMapper;
-    private final MediaMapper mediaMapper;
     private final UserMapper userMapper;
     private final LocationMapper locationMapper;
     private final TagMapper tagMapper;
     private final SubmissionReviewSettingService reviewSettingService;
+    private final SubmissionPublicationService publicationService;
     private final ImageFileUpload imageFileUpload;
     private final FileStorage fileStorage;
 
@@ -63,6 +63,7 @@ public class SubmissionService {
                 .tags(encodeTagIds(request.getTagIds()))
                 .status(SubmissionStatus.PENDING)
                 .submittedAt(LocalDateTime.now())
+                .version(0)
                 .deleted(false)
                 .build();
         submissionMapper.insert(submission);
@@ -136,8 +137,18 @@ public class SubmissionService {
             if (replace) deleteKeysAfterCommit(oldAssets.stream().map(SubmissionAsset::getObjectKey).toList());
         }
 
+        Integer expectedVersion = Objects.requireNonNullElse(submission.getVersion(), 0);
+        SubmissionStatus expectedStatus = submission.getStatus();
         submission.setUpdatedAt(LocalDateTime.now());
-        submissionMapper.updateById(submission);
+        int updated = submissionMapper.updateEditableWithVersion(
+                submission,
+                expectedStatus.getValue(),
+                expectedVersion
+        );
+        if (updated != 1) {
+            throw new BizException(BizCode.SUBMISSION_VERSION_CONFLICT);
+        }
+        submission.setVersion(expectedVersion + 1);
         return buildDetail(submission, location);
     }
 
@@ -145,18 +156,37 @@ public class SubmissionService {
     public SubmissionDetailVO resubmit(Long userId, Long submissionId) {
         requireUploader(userId);
         Submission submission = requireOwned(userId, submissionId);
-        if (submission.getStatus() != SubmissionStatus.REJECTED) {
+        if (submission.getStatus() != SubmissionStatus.RETURNED) {
             throw new BizException(BizCode.SUBMISSION_STATUS_INVALID, "只有被退回的稿件可以重新提交");
         }
-        submission.setStatus(SubmissionStatus.PENDING);
+        Integer expectedVersion = Objects.requireNonNullElse(submission.getVersion(), 0);
+        boolean reviewEnabled = reviewSettingService.isReviewEnabled();
+        SubmissionStatus afterStatus = reviewEnabled
+                ? SubmissionStatus.PENDING
+                : SubmissionStatus.APPROVED;
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime reviewedAt = reviewEnabled ? null : now;
+        int updated = submissionMapper.resubmitWithVersion(
+                submissionId,
+                userId,
+                expectedVersion,
+                afterStatus.getValue(),
+                now,
+                reviewedAt
+        );
+        if (updated != 1) {
+            throw new BizException(BizCode.SUBMISSION_VERSION_CONFLICT);
+        }
+
+        submission.setStatus(afterStatus);
         submission.setReviewReason(null);
-        submission.setReviewedAt(null);
+        submission.setReviewedAt(reviewedAt);
         submission.setReviewedBy(null);
-        submission.setSubmittedAt(LocalDateTime.now());
-        if (reviewSettingService.isReviewEnabled()) {
-            submissionMapper.updateById(submission);
-        } else {
-            publishSubmission(submission);
+        submission.setSubmittedAt(now);
+        submission.setUpdatedAt(now);
+        submission.setVersion(expectedVersion + 1);
+        if (!reviewEnabled) {
+            publicationService.publishAssets(submission);
         }
         return buildDetail(submission, requireLocationIncludingDisabled(submission.getLocationId()));
     }
@@ -168,8 +198,20 @@ public class SubmissionService {
         if (submission.getStatus() != SubmissionStatus.PENDING) {
             throw new BizException(BizCode.SUBMISSION_STATUS_INVALID, "只有待审核稿件可以撤回");
         }
+        Integer expectedVersion = Objects.requireNonNullElse(submission.getVersion(), 0);
+        LocalDateTime now = LocalDateTime.now();
+        int updated = submissionMapper.withdrawWithVersion(
+                submissionId,
+                userId,
+                expectedVersion,
+                now
+        );
+        if (updated != 1) {
+            throw new BizException(BizCode.SUBMISSION_VERSION_CONFLICT);
+        }
         submission.setStatus(SubmissionStatus.WITHDRAWN);
-        submissionMapper.updateById(submission);
+        submission.setUpdatedAt(now);
+        submission.setVersion(expectedVersion + 1);
     }
 
     private User requireFormalUser(Long userId) {
@@ -225,7 +267,7 @@ public class SubmissionService {
 
     private void requireEditable(Submission submission) {
         if (submission.getStatus() != SubmissionStatus.PENDING
-                && submission.getStatus() != SubmissionStatus.REJECTED) {
+                && submission.getStatus() != SubmissionStatus.RETURNED) {
             throw new BizException(BizCode.SUBMISSION_STATUS_INVALID, "只有待审或退回稿件可以修改");
         }
     }
@@ -297,54 +339,15 @@ public class SubmissionService {
      * 调用者必须处于事务中，确保稿件状态、图片关联和媒体记录同时成功或回滚。
      */
     private void publishSubmission(Submission submission) {
-        List<SubmissionAsset> assets = listAssets(submission.getId());
-        if (assets.isEmpty()) {
-            throw new BizException(BizCode.SUBMISSION_FILE_REQUIRED);
-        }
-
-        for (SubmissionAsset asset : assets) {
-            if (asset.getMediaId() != null) {
-                continue;
-            }
-
-            Media media = mediaMapper.selectOne(new LambdaQueryWrapper<Media>()
-                    .eq(Media::getObjectKey, asset.getObjectKey()));
-            if (media == null) {
-                media = new Media();
-                media.setSubmissionId(submission.getId());
-                media.setUploaderId(submission.getUserId());
-                media.setLocationId(submission.getLocationId());
-                media.setObjectKey(asset.getObjectKey());
-                media.setThumbnailKey(null);
-                media.setTitle(mediaTitle(asset.getOriginalName()));
-                media.setDescription(submission.getDescription());
-                media.setShotAt(submission.getShotAt());
-                media.setTags(submission.getTags());
-                media.setStatus(ENABLED);
-                media.setViewCount(0L);
-                media.setLikeCount(0L);
-                media.setFavoriteCount(0L);
-                media.setDownloadCount(0L);
-                mediaMapper.insert(media);
-            }
-
-            asset.setMediaId(media.getId());
-            assetMapper.updateById(asset);
-        }
+        publicationService.publishAssets(submission);
 
         submission.setStatus(SubmissionStatus.APPROVED);
         submission.setReviewReason(null);
         submission.setReviewedBy(null);
         submission.setReviewedAt(LocalDateTime.now());
         submission.setUpdatedAt(LocalDateTime.now());
+        submission.setVersion(Objects.requireNonNullElse(submission.getVersion(), 0) + 1);
         submissionMapper.updateById(submission);
-    }
-
-    private String mediaTitle(String originalName) {
-        if (originalName == null || originalName.isBlank()) {
-            return null;
-        }
-        return originalName.length() <= 150 ? originalName : originalName.substring(0, 150);
     }
 
     private SubmissionDetailVO buildDetail(Submission submission, Location location) {
@@ -381,7 +384,7 @@ public class SubmissionService {
         if (tagIds == null || tagIds.isEmpty()) return null;
 
         LinkedHashSet<Long> uniqueTagIds = new LinkedHashSet<>(tagIds);
-        Map<Long, Tag> tagsById = tagMapper.selectBatchIds(uniqueTagIds)
+        Map<Long, Tag> tagsById = tagMapper.selectByIds(uniqueTagIds)
                 .stream()
                 .collect(Collectors.toMap(Tag::getId, Function.identity()));
 

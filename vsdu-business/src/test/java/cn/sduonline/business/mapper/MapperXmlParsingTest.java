@@ -4,7 +4,9 @@ import cn.sduonline.business.data.dto.AdminUpdateLocationRequest;
 import cn.sduonline.business.data.dto.AdminUpdateTopicRequest;
 import cn.sduonline.business.data.dto.AdminUpdateUserPermissionRequest;
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
+import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.po.Location;
+import cn.sduonline.business.data.po.Submission;
 import cn.sduonline.business.data.po.Topic;
 import cn.sduonline.business.data.projection.MediaTagPatch;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
@@ -76,6 +78,63 @@ class MapperXmlParsingTest {
                 "ORDER BY");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.TagMapper.selectUsedTagSuggestions",
                 Map.of("keyword", "校园", "limit", 20), "ROW_NUMBER()");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.updateReviewWithVersion",
+                Map.of(
+                        "submissionId", 1L,
+                        "expectedVersion", 2,
+                        "beforeStatus", SubmissionStatus.PENDING.getValue(),
+                        "afterStatus", SubmissionStatus.APPROVED.getValue(),
+                        "reviewReason", "审核通过",
+                        "reviewedBy", 7L,
+                        "reviewedAt", LocalDateTime.now()
+                ), "version = version + 1");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.selectAdminSubmissionPage",
+                Map.of(
+                        "status", SubmissionStatus.PENDING.getValue(),
+                        "keyword", "校园",
+                        "userId", 1L,
+                        "locationId", 2L,
+                        "submittedFrom", LocalDateTime.now().minusDays(7),
+                        "submittedTo", LocalDateTime.now(),
+                        "sort", "newest",
+                        "offset", 0L,
+                        "size", 20L
+                ), "ORDER BY s.submitted_at DESC");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionReviewLogMapper.selectPageBySubmission",
+                Map.of("submissionId", 1L, "offset", 0L, "size", 20L),
+                "ORDER BY log.round_no DESC");
+
+        Submission submission = Submission.builder()
+                .id(1L)
+                .userId(2L)
+                .locationId(3L)
+                .description("修改后的描述")
+                .status(SubmissionStatus.PENDING)
+                .version(4)
+                .updatedAt(LocalDateTime.now())
+                .build();
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.updateEditableWithVersion",
+                Map.of(
+                        "submission", submission,
+                        "expectedStatus", SubmissionStatus.PENDING.getValue(),
+                        "expectedVersion", 4
+                ), "version = version + 1");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.resubmitWithVersion",
+                Map.of(
+                        "submissionId", 1L,
+                        "userId", 2L,
+                        "expectedVersion", 4,
+                        "afterStatus", SubmissionStatus.PENDING.getValue(),
+                        "submittedAt", LocalDateTime.now(),
+                        "reviewedAt", LocalDateTime.now()
+                ), "AND status = 2");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.withdrawWithVersion",
+                Map.of(
+                        "submissionId", 1L,
+                        "userId", 2L,
+                        "expectedVersion", 4,
+                        "updatedAt", LocalDateTime.now()
+                ), "AND status = 0");
     }
 
     private MybatisConfiguration parseMappers() throws Exception {
@@ -84,7 +143,7 @@ class MapperXmlParsingTest {
         assertThat(resources).isNotEmpty();
 
         MybatisConfiguration configuration = new MybatisConfiguration();
-        Arrays.sort(resources, java.util.Comparator.comparing(Resource::getFilename));
+        Arrays.sort(resources, java.util.Comparator.comparing(Resource::getDescription));
         for (Resource resource : resources) {
             try (InputStream input = resource.getInputStream()) {
                 new XMLMapperBuilder(

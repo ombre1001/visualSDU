@@ -55,7 +55,7 @@
           AND published_at &lt;= CURRENT_TIMESTAMP(3)
         ORDER BY
             is_pinned DESC,
-            sort_order ASC,
+            sort_order,
             published_at DESC,
             id DESC
         LIMIT #{offset}, #{size}

@@ -1,24 +1,22 @@
-package cn.sduonline.business.data.po;
+package cn.sduonline.business.data.projection;
 
 import cn.sduonline.business.data.enums.SubmissionStatus;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
-import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@Builder
-@TableName("submission")
-public class Submission {
-    @TableId(type = IdType.AUTO)
+public class AdminSubmissionDetailRow {
     private Long id;
     private Long userId;
+    private String uploaderCasId;
+    private String uploaderName;
+    private String uploaderNickname;
+    private String uploaderAvatarKey;
+    private Long uploaderSubmissionCount;
+    private Long uploaderApprovedCount;
     private Long locationId;
+    private String locationName;
     private String description;
     private LocalDateTime shotAt;
     private String tags;
@@ -26,11 +24,9 @@ public class Submission {
     private String reviewReason;
     private LocalDateTime submittedAt;
     private Long reviewedBy;
+    private String reviewerName;
     private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    @Version
     private Integer version;
-    @TableLogic
-    private Boolean deleted;
 }

@@ -4,14 +4,13 @@ import com.baomidou.mybatisplus.annotation.IEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/** 投稿审核决定。 */
 @Getter
 @RequiredArgsConstructor
-public enum SubmissionStatus implements IEnum<Integer> {
-    PENDING(0),
-    APPROVED(1),
-    RETURNED(2),
-    WITHDRAWN(3),
-    REJECTED(4);
+public enum SubmissionReviewDecision implements IEnum<Integer> {
+    APPROVE(1),
+    RETURN(2),
+    REJECT(3);
 
     private final Integer value;
 }

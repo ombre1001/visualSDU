@@ -66,6 +66,7 @@ public enum BizCode {
     SUBMISSION_FILE_EMPTY(14007, "上传照片为空", 400),
     SUBMISSION_FILE_TOO_LARGE(14008, "提交文件过大", 400),
     SUBMISSION_FILE_TYPE_NOT_SUPPORT(14009, "上传文件类型不支持", 400),
+    SUBMISSION_VERSION_CONFLICT(14010, "稿件已发生变化，请刷新后重试", 409),
 
     // 搜索与发现：15xxx
     SEARCH_KEYWORD_TOO_LONG(15000, "搜索关键词长度不能超过50个字符", 400),
@@ -117,6 +118,12 @@ public enum BizCode {
     ADMIN_TOPIC_NOT_FOUND(17400, "专题不存在", 404),
     ADMIN_TOPIC_SLUG_EXISTS(17401, "专题标识已存在", 409),
     ADMIN_TOPIC_UPDATE_EMPTY(17402, "请至少提供一项需要修改的专题信息", 400),
+
+    // 管理员投稿审核：175xx
+    ADMIN_SUBMISSION_NOT_FOUND(17500, "稿件不存在", 404),
+    ADMIN_SUBMISSION_NOT_PENDING(17501, "稿件已不处于待审核状态", 409),
+    ADMIN_SUBMISSION_VERSION_CONFLICT(17502, "稿件已被其他管理员处理，请刷新后重试", 409),
+    ADMIN_SUBMISSION_REVIEW_REASON_REQUIRED(17503, "退回或拒绝稿件时必须填写原因", 400),
 
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),

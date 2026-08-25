@@ -48,7 +48,7 @@ public class AdminTopicService {
                 && r.status() == null && r.sortOrder() == null && r.mediaIds() == null) {
             throw new BizException(BizCode.ADMIN_TOPIC_UPDATE_EMPTY);
         }
-        if (r.name() != null) { topic.setName(required(r.name(), "专题名称不能为空")); }
+        if (r.name() != null) { topic.setName(required(r.name())); }
         if (r.slug() != null) { String v = r.slug().strip(); requireUniqueSlug(v, id); topic.setSlug(v); }
         if (r.description() != null) { topic.setDescription(nullable(r.description())); }
         if (r.coverUrl() != null) { topic.setCoverUrl(nullable(r.coverUrl())); }
@@ -62,7 +62,7 @@ public class AdminTopicService {
 
     private void replaceMedia(Long topicId, List<Long> mediaIds) {
         if (new HashSet<>(mediaIds).size() != mediaIds.size()) throw new BizException(BizCode.BAD_REQUEST, "媒体ID不能重复");
-        if (!mediaIds.isEmpty() && mediaMapper.selectBatchIds(mediaIds).size() != mediaIds.size()) {
+        if (!mediaIds.isEmpty() && mediaMapper.selectByIds(mediaIds).size() != mediaIds.size()) {
             throw new BizException(BizCode.ADMIN_MEDIA_NOT_FOUND);
         }
         topicMediaMapper.deleteByTopic(topicId);
@@ -80,8 +80,8 @@ public class AdminTopicService {
                 t.getStatus(), t.getSortOrder(), topicMediaMapper.selectAllMediaIds(t.getId()), t.getCreatedAt(), t.getUpdatedAt());
     }
 
-    private String required(String v, String message) {
-        String result = nullable(v); if (result == null) throw new BizException(BizCode.BAD_REQUEST, message); return result;
+    private String required(String v) {
+        String result = nullable(v); if (result == null) throw new BizException(BizCode.BAD_REQUEST, "专题名称不能为空"); return result;
     }
     private String nullable(String v) { return v == null || v.isBlank() ? null : v.strip(); }
 }

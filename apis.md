@@ -1,6 +1,6 @@
 # visualSDU 前端接口对照文档
 
-> 总结日期：2026-08-22
+> 总结日期：2026-08-25
 > 本文描述的是**当前代码实际行为**，不是规划中的接口。
 
 ## 1. 全局约定
@@ -102,7 +102,7 @@ token: <accessToken>
 
 ## 2. 接口总览
 
-至今开发完成的共有 75 个实际映射的接口。
+至今开发完成的共有 80 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
@@ -153,6 +153,11 @@ token: <accessToken>
 | 投稿 | POST | `/submissions/{submissionId}/resubmit` | 登录 | Path | 投稿详情对象 |
 | 投稿 | POST | `/submissions/{submissionId}/withdraw` | 登录 | Path | `null` |
 | 管理 | PUT | `/admin/settings/submission-review` | 管理员 | JSON | 审核设置对象 |
+| 管理审核 | GET | `/admin/submissions` | 管理员 | Query | 管理稿件摘要分页对象 |
+| 管理审核 | GET | `/admin/submissions/{submissionId}` | 管理员 | Path | 管理稿件详情对象 |
+| 管理审核 | POST | `/admin/submissions/{submissionId}/review` | 管理员 | JSON | 审核结果对象 |
+| 管理审核 | POST | `/admin/submissions/reviews/batch` | 管理员 | JSON | 批量审核结果对象 |
+| 管理审核 | GET | `/admin/submissions/{submissionId}/review-logs` | 管理员 | Query | 审核记录分页对象 |
 | 管理用户 | GET | `/admin/users` | 管理员 | Query | 管理用户分页对象 |
 | 管理用户 | GET | `/admin/users/{userId}` | 管理员 | Path | 管理用户对象 |
 | 管理用户 | PATCH | `/admin/users/{userId}/role` | 管理员 | JSON | 管理用户对象 |
@@ -1222,19 +1227,20 @@ JSON 响应示例：
 |---|---|
 | `PENDING` | 待审核 |
 | `APPROVED` | 已通过/已发布 |
-| `REJECTED` | 已退回 |
+| `RETURNED` | 已退回修改，允许修改并重新提交 |
 | `WITHDRAWN` | 已撤回 |
+| `REJECTED` | 永久拒绝，不能重新提交 |
 
 主要状态流转：
 
 ```text
 创建 ──审核开启──> PENDING ──撤回──> WITHDRAWN
   │                   │
-  │                   └──后台审核退回（当前仓库无对应 HTTP 接口）──> REJECTED
-  │                                                                  │
-  └──审核关闭──> APPROVED <────────────重新提交且审核关闭──────────────┘
-                                      │
-                                      └──审核开启──> PENDING
+  │                   ├──后台审核通过──> APPROVED
+  │                   ├──后台退回修改──> RETURNED ──重新提交──> PENDING / APPROVED
+  │                   └──后台永久拒绝──> REJECTED
+  │
+  └──审核关闭──> APPROVED
 ```
 
 ### 7.2 创建投稿
@@ -1471,7 +1477,7 @@ JSON 响应示例：
     "description": "夏日晚霞下的知新楼",
     "shotAt": "2026-08-15T18:30:00",
     "tags": ["晚霞", "建筑"],
-    "status": "REJECTED",
+    "status": "RETURNED",
     "reviewReason": "请补充更准确的拍摄时间",
     "submittedAt": "2026-08-15T19:00:00",
     "reviewedBy": 20001,
@@ -1502,7 +1508,7 @@ token: <accessToken>
 Content-Type: multipart/form-data
 ```
 
-仅投稿所有者可修改，且状态必须为 `PENDING` 或 `REJECTED`。Multipart 字段均为可选：
+仅投稿所有者可修改，且状态必须为 `PENDING` 或 `RETURNED`。Multipart 字段均为可选：
 
 > 当前仓库的修改投稿接口尚未改用标签 ID，仍接收标签名称字段 `tags`；不要在此接口提交 `tagIds`。
 
@@ -1520,7 +1526,7 @@ Content-Type: multipart/form-data
 - 默认追加，新旧图片总数不可超过 9。
 - `replaceFiles=true` 时必须同时提供至少一个新文件，否则返回 `14004`。
 - 当前没有按单张图片删除的接口。
-- 修改 `REJECTED` 稿件不会自动重新提交，修改后仍为 `REJECTED`，需要再调用 `resubmit`。
+- 修改 `RETURNED` 稿件不会自动重新提交，修改后仍为 `RETURNED`，需要再调用 `resubmit`。
 
 响应 `data` 字段：
 
@@ -1563,7 +1569,7 @@ JSON 响应示例（修改被退回稿件）：
     "description": "已补充拍摄时间",
     "shotAt": "2026-08-15T18:30:00",
     "tags": ["晚霞", "建筑"],
-    "status": "REJECTED",
+    "status": "RETURNED",
     "reviewReason": "请补充更准确的拍摄时间",
     "submittedAt": "2026-08-15T19:00:00",
     "reviewedBy": 20001,
@@ -1593,7 +1599,7 @@ POST /submissions/{submissionId}/resubmit
 token: <accessToken>
 ```
 
-仅所有者、正式正常且允许投稿的用户可调用；只有 `REJECTED` 稿件可重新提交。
+仅所有者、正式正常且允许投稿的用户可调用；只有 `RETURNED` 稿件可重新提交。`REJECTED` 表示永久拒绝，不能重新提交。
 
 - 审核开启：状态变为 `PENDING`。
 - 审核关闭：立即发布，状态变为 `APPROVED`。
@@ -1737,9 +1743,247 @@ JSON 响应示例：
 
 未登录或非管理员调用该接口，当前均返回 `10103 / HTTP 403`。
 
-> 当前没有读取审核开关的 GET 接口，也没有审核通过/退回投稿的 HTTP 接口。
+> 当前没有读取审核开关的 GET 接口；审核通过、退回修改和永久拒绝由下方管理员审核接口完成。
 
-### 8.2 管理员用户列表
+### 8.2 管理端稿件列表
+
+```http
+GET /admin/submissions?status=PENDING&keyword=图书馆&locationId=101&sort=oldest&page=1&size=20
+token: <管理员 accessToken>
+```
+
+Query 参数：
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---|---:|---:|---|
+| `status` | `SubmissionStatus` | 否 | `PENDING` | 精确过滤稿件状态；枚举名区分大小写 |
+| `keyword` | string | 否 | - | 最长 50 字符；模糊匹配稿件描述、标签及投稿人的手机号、CAS ID、姓名、昵称 |
+| `userId` | number | 否 | - | 正数；精确过滤投稿人 |
+| `locationId` | number | 否 | - | 正数；精确过滤地点 |
+| `submittedFrom` | ISO LocalDateTime | 否 | - | 投稿时间下界，包含边界 |
+| `submittedTo` | ISO LocalDateTime | 否 | - | 投稿时间上界，包含边界；不能早于 `submittedFrom` |
+| `sort` | string | 否 | `oldest` | `oldest` 等待最久优先，`newest` 最新投稿优先；大小写不敏感 |
+| `page` | number | 否 | `1` | 正整数 |
+| `size` | number | 否 | `20` | 正整数；大于 100 时按 100 返回 |
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total` | number | 否 | 符合条件的稿件总数 |
+| `data.page` | number | 否 | 规范化后的页码 |
+| `data.size` | number | 否 | 规范化后的每页数量 |
+| `data.items` | array&lt;object&gt; | 否 | 当前页稿件摘要 |
+| `data.items[].id` | number | 否 | 稿件 ID |
+| `data.items[].userId` | number | 否 | 投稿人 ID |
+| `data.items[].uploaderName` | string | 是 | 优先使用昵称，其次姓名、CAS ID |
+| `data.items[].locationId` | number | 否 | 地点 ID |
+| `data.items[].locationName` | string | 是 | 地点名称 |
+| `data.items[].description` | string | 是 | 稿件描述 |
+| `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.items[].status` | string | 否 | 稿件状态 |
+| `data.items[].reviewReason` | string | 是 | 最近审核原因 |
+| `data.items[].assetCount` | number | 否 | 图片数量 |
+| `data.items[].coverUrl` | string | 是 | 第一张图片的预签名 URL |
+| `data.items[].submittedAt` | string | 是 | 最近投稿时间 |
+| `data.items[].reviewedAt` | string | 是 | 最近审核时间 |
+| `data.items[].updatedAt` | string | 是 | 更新时间 |
+| `data.items[].version` | number | 否 | 当前乐观锁版本；审核时作为 `expectedVersion` 提交 |
+
+主要错误：通用参数校验错误 `400`、非管理员 `10103`。`submittedFrom` 晚于 `submittedTo` 或 `sort` 非法时返回通用 `400`。
+
+### 8.3 管理端稿件详情
+
+```http
+GET /admin/submissions/{submissionId}
+token: <管理员 accessToken>
+```
+
+除稿件和图片信息外，响应还包含投稿人统计、当前版本以及最近 5 条审核记录：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 稿件 ID |
+| `data.uploader` | object | 否 | 投稿人信息 |
+| `data.uploader.id` | number | 否 | 投稿人 ID |
+| `data.uploader.casId` | string | 是 | CAS ID |
+| `data.uploader.name` | string | 是 | 姓名 |
+| `data.uploader.nickname` | string | 是 | 昵称 |
+| `data.uploader.avatarUrl` | string | 是 | 头像预签名 URL |
+| `data.uploader.submissionCount` | number | 否 | 历史未删除稿件数 |
+| `data.uploader.approvedCount` | number | 否 | 历史已通过稿件数 |
+| `data.locationId` | number | 否 | 地点 ID |
+| `data.locationName` | string | 是 | 地点名称 |
+| `data.description` | string | 是 | 稿件描述 |
+| `data.shotAt` | string | 是 | 拍摄时间 |
+| `data.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.status` | string | 否 | 稿件状态 |
+| `data.reviewReason` | string | 是 | 最近审核原因 |
+| `data.submittedAt` | string | 是 | 最近提交时间 |
+| `data.reviewedBy` | number | 是 | 最近审核管理员 ID |
+| `data.reviewerName` | string | 是 | 最近审核管理员显示名 |
+| `data.reviewedAt` | string | 是 | 最近审核时间 |
+| `data.createdAt` | string | 是 | 创建时间 |
+| `data.updatedAt` | string | 是 | 更新时间 |
+| `data.version` | number | 否 | 当前乐观锁版本 |
+| `data.assets` | array&lt;object&gt; | 否 | 图片数组；字段与用户投稿详情中的 `assets` 相同 |
+| `data.recentReviewLogs` | array&lt;object&gt; | 否 | 最近最多 5 条审核记录，字段见 8.6 |
+
+主要错误：`17500` 稿件不存在、`10103` 非管理员。
+
+### 8.4 审核单个稿件
+
+```http
+POST /admin/submissions/{submissionId}/review
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求体：
+
+```json
+{
+  "decision": "RETURN",
+  "reason": "请补充准确的拍摄地点",
+  "expectedVersion": 3
+}
+```
+
+| 字段 | 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `decision` | string | 是 | `APPROVE`、`RETURN`、`REJECT` |
+| `reason` | string | 条件必填 | 最长 1000 字符；`RETURN` 和 `REJECT` 时去除首尾空白后必须非空 |
+| `expectedVersion` | number | 是 | 非负整数；来自稿件列表或详情的 `version` |
+
+决定与状态对应关系：
+
+| `decision` | 审核后状态 | 行为 |
+|---|---|---|
+| `APPROVE` | `APPROVED` | 每张投稿图片生成一条媒体记录并回填 `mediaId` |
+| `RETURN` | `RETURNED` | 作者可以修改并重新提交 |
+| `REJECT` | `REJECTED` | 永久拒绝，作者不能重新提交 |
+
+审核只允许从 `PENDING` 状态执行。状态更新、媒体发布和审核日志写入位于同一数据库事务中。更新 SQL 同时校验 `status = PENDING` 和 `version = expectedVersion`，成功后版本加一。
+
+同一管理员使用相同 `expectedVersion` 重复提交相同 `decision` 时按幂等成功返回；审核人或决定不同则返回版本冲突。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.submissionId` | number | 否 | 稿件 ID |
+| `data.status` | string | 否 | 审核后的状态 |
+| `data.version` | number | 否 | 审核后的版本，即原版本加一 |
+| `data.reviewReason` | string | 是 | 规范化后的审核原因 |
+| `data.reviewedBy` | number | 否 | 审核管理员 ID |
+| `data.reviewedAt` | string | 否 | 审核时间 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "稿件审核成功",
+  "data": {
+    "submissionId": 801,
+    "status": "RETURNED",
+    "version": 4,
+    "reviewReason": "请补充准确的拍摄地点",
+    "reviewedBy": 20001,
+    "reviewedAt": "2026-08-25T14:00:00"
+  },
+  "timestamp": 1787637600000
+}
+```
+
+主要错误：`17500` 稿件不存在、`17501` 稿件已不处于待审核状态、`17502` 版本冲突、`17503` 缺少退回/拒绝原因，以及通用字段校验错误 `400`。
+
+### 8.5 批量审核稿件
+
+```http
+POST /admin/submissions/reviews/batch
+token: <管理员 accessToken>
+Content-Type: application/json
+```
+
+请求体：
+
+```json
+{
+  "items": [
+    {
+      "submissionId": 801,
+      "decision": "APPROVE",
+      "reason": null,
+      "expectedVersion": 2
+    },
+    {
+      "submissionId": 802,
+      "decision": "RETURN",
+      "reason": "地点信息不准确",
+      "expectedVersion": 4
+    }
+  ]
+}
+```
+
+`items` 必须包含 1～50 条记录，稿件 ID 不能重复。每项字段约束与单条审核一致。
+
+每条稿件使用独立事务处理；一条失败不会回滚其他已成功稿件。接口整体成功时 HTTP 和外层 `code` 仍为成功，前端必须检查每个 `data.items[].success`。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.requestedCount` | number | 否 | 请求项数量 |
+| `data.successCount` | number | 否 | 成功数量 |
+| `data.failureCount` | number | 否 | 失败数量 |
+| `data.items` | array&lt;object&gt; | 否 | 逐条处理结果，顺序与请求一致 |
+| `data.items[].submissionId` | number | 否 | 稿件 ID |
+| `data.items[].success` | boolean | 否 | 是否成功 |
+| `data.items[].code` | number | 否 | 单项业务码；成功为 `0` |
+| `data.items[].message` | string | 否 | 单项结果说明 |
+| `data.items[].status` | string | 是 | 成功时为审核后状态，失败时为空 |
+| `data.items[].version` | number | 是 | 成功时为审核后版本，失败时为空 |
+
+请求体整体不合法，例如空数组、超过 50 条或稿件 ID 重复时，返回通用 `400`，不会开始逐条审核。
+
+### 8.6 稿件审核记录
+
+```http
+GET /admin/submissions/{submissionId}/review-logs?page=1&size=20
+token: <管理员 accessToken>
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---:|---:|---:|---|
+| `page` | number | 否 | `1` | 正整数 |
+| `size` | number | 否 | `20` | 正整数；大于 100 时按 100 返回 |
+
+审核记录按轮次、记录 ID 降序排列。
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total` | number | 否 | 审核记录总数 |
+| `data.page` | number | 否 | 当前页码 |
+| `data.size` | number | 否 | 每页数量 |
+| `data.items` | array&lt;object&gt; | 否 | 审核记录数组 |
+| `data.items[].id` | number | 否 | 审核记录 ID |
+| `data.items[].submissionId` | number | 否 | 稿件 ID |
+| `data.items[].roundNo` | number | 否 | 审核轮次，从 1 开始 |
+| `data.items[].submissionVersion` | number | 否 | 本轮审核前的稿件版本 |
+| `data.items[].decision` | string | 否 | `APPROVE`、`RETURN`、`REJECT` |
+| `data.items[].reason` | string | 是 | 审核原因 |
+| `data.items[].beforeStatus` | string | 否 | 审核前状态，当前为 `PENDING` |
+| `data.items[].afterStatus` | string | 否 | 审核后状态 |
+| `data.items[].reviewedBy` | number | 否 | 审核管理员 ID |
+| `data.items[].reviewerName` | string | 是 | 审核管理员显示名 |
+| `data.items[].reviewedAt` | string | 否 | 审核时间 |
+
+主要错误：`17500` 稿件不存在、`10103` 非管理员。
+
+### 8.7 管理员用户列表
 
 ```http
 GET /admin/users?keyword=张三&role=0&status=1&page=1&size=20
@@ -1801,7 +2045,7 @@ token: <管理员 accessToken>
 }
 ```
 
-### 8.3 管理员用户详情
+### 8.8 管理员用户详情
 
 ```http
 GET /admin/users/{userId}
@@ -1829,7 +2073,7 @@ JSON 响应示例：
 
 主要错误：`17000` 用户不存在。
 
-### 8.4 修改用户角色
+### 8.9 修改用户角色
 
 ```http
 PATCH /admin/users/{userId}/role
@@ -1883,7 +2127,7 @@ JSON 响应示例：
 
 主要错误：`17000` 用户不存在、`17001` 修改自身角色、`17003` 不能移除最后一名正常管理员。
 
-### 8.5 修改用户状态
+### 8.10 修改用户状态
 
 ```http
 PATCH /admin/users/{userId}/status
@@ -1950,7 +2194,7 @@ JSON 响应示例：
 
 主要错误：`17000`、`17002`、`17003`、`17004`、`17005`。
 
-### 8.6 修改用户功能权限
+### 8.11 修改用户功能权限
 
 ```http
 PATCH /admin/users/{userId}/permissions
@@ -2003,7 +2247,7 @@ JSON 响应示例：
 
 主要错误：`17000` 用户不存在、`17006` 没有提供可修改权限。
 
-### 8.7 创建地点
+### 8.12 创建地点
 
 ```http
 POST /admin/locations
@@ -2077,7 +2321,7 @@ Content-Type: application/json
 
 主要错误：`17112` 目标校区不存在或停用，以及通用字段校验错误 `400`。
 
-### 8.8 修改地点
+### 8.13 修改地点
 
 ```http
 PATCH /admin/locations/{locationId}
@@ -2112,7 +2356,7 @@ JSON 响应示例：
 
 主要错误：`17110` 地点不存在、`17111` 空更新、`17112` 新校区无效。
 
-### 8.9 管理员媒体列表
+### 8.14 管理员媒体列表
 
 ```http
 GET /admin/media?keyword=晚霞&locationId=101&status=1&page=1&size=20
@@ -2176,7 +2420,7 @@ token: <管理员 accessToken>
 }
 ```
 
-### 8.10 修改媒体分类
+### 8.15 修改媒体分类
 
 ```http
 PATCH /admin/media/{mediaId}/classification
@@ -2214,7 +2458,7 @@ Content-Type: application/json
 
 主要错误：`17200` 媒体不存在、`17201` 空分类、`17202` 地点无效、`17100` 标签不存在，以及重复标签 ID 对应通用 `400`。
 
-### 8.11 隐藏媒体
+### 8.16 隐藏媒体
 
 ```http
 POST /admin/media/{mediaId}/hide
@@ -2242,7 +2486,7 @@ token: <管理员 accessToken>
 
 主要错误：`17200` 媒体不存在、`17203` 已经隐藏。
 
-### 8.12 恢复媒体
+### 8.17 恢复媒体
 
 ```http
 POST /admin/media/{mediaId}/restore
@@ -2270,7 +2514,7 @@ token: <管理员 accessToken>
 
 主要错误：`17200` 媒体不存在、`17202` 地点缺失或停用、`17204` 已经可见。
 
-### 8.13 永久删除媒体
+### 8.18 永久删除媒体
 
 ```http
 DELETE /admin/media/{mediaId}
@@ -2291,7 +2535,7 @@ token: <管理员 accessToken>
 
 主要错误：`17200` 媒体不存在、`17205 / HTTP 502` 存储文件删除失败。
 
-### 8.14 管理员标签列表
+### 8.19 管理员标签列表
 
 ```http
 GET /admin/tags?keyword=建筑
@@ -2314,7 +2558,7 @@ token: <管理员 accessToken>
 {"code":0,"msg":"成功","data":[{"id":1,"name":"建筑","mediaCount":36,"createdAt":"2026-08-18T09:00:00","updatedAt":"2026-08-18T09:00:00"}],"timestamp":1787392800000}
 ```
 
-### 8.15 创建标签
+### 8.20 创建标签
 
 ```http
 POST /admin/tags
@@ -2341,7 +2585,7 @@ Content-Type: application/json
 
 主要错误：`17101` 标签名已存在，以及通用字段错误 `400`。
 
-### 8.16 修改标签
+### 8.21 修改标签
 
 ```http
 PATCH /admin/tags/{tagId}
@@ -2367,7 +2611,7 @@ Content-Type: application/json
 
 主要错误：`17100` 标签不存在、`17101` 新名称已存在。
 
-### 8.17 合并或删除标签
+### 8.22 合并或删除标签
 
 ```http
 POST /admin/tags/{tagId}/merge
@@ -2393,7 +2637,7 @@ Content-Type: application/json
 
 `targetTagId` 为空时成功文案为“标签已删除”。主要错误：`17100` 源或目标标签不存在、`17103` 合并到自身。
 
-### 8.18 创建专题
+### 8.23 创建专题
 
 ```http
 POST /admin/topics
@@ -2432,7 +2676,7 @@ Content-Type: application/json
 
 主要错误：`17401` slug 已存在、`17200` 关联媒体不存在，以及通用字段错误 `400`。当前只校验媒体存在，不要求媒体可见。
 
-### 8.19 修改专题
+### 8.24 修改专题
 
 ```http
 PATCH /admin/topics/{topicId}
@@ -2461,7 +2705,7 @@ JSON 响应示例：
 
 主要错误：`17400` 专题不存在、`17401` slug 已存在、`17402` 空更新、`17200` 媒体不存在。
 
-### 8.20 创建时光对比
+### 8.25 创建时光对比
 
 ```http
 POST /admin/time-comparisons
@@ -4076,6 +4320,7 @@ Content-Type: application/json
 | 400 | `14007` | 上传照片为空 | 文件上传校验 |
 | 400 | `14008` | 提交文件过大 | 应用层单文件超过 20 MiB |
 | 400 | `14009` | 上传文件类型不支持 | MIME 或文件魔数不符合要求 |
+| 409 | `14010` | 稿件已发生变化，请刷新后重试 | 作者修改、重新提交或撤回时发生乐观锁冲突 |
 | 400 | `19000` | 请求体过大 | 请求在 multipart 解析阶段超过限制 |
 
 ### 14.5 搜索、发现与话题
@@ -4141,6 +4386,15 @@ Content-Type: application/json
 | 409 | `17401` | 专题标识已存在 |
 | 400 | `17402` | 请至少提供一项需要修改的专题信息 |
 
+### 14.9 管理员投稿审核
+
+| HTTP | `code` | 默认 `msg` | 说明 |
+|---:|---:|---|---|
+| 404 | `17500` | 稿件不存在 | 管理端详情、审核或审核记录查询目标不存在 |
+| 409 | `17501` | 稿件已不处于待审核状态 | 仅 `PENDING` 稿件允许审核 |
+| 409 | `17502` | 稿件已被其他管理员处理，请刷新后重试 | `expectedVersion` 过期，或相同版本已被其他审核人/决定使用 |
+| 400 | `17503` | 退回或拒绝稿件时必须填写原因 | `RETURN`、`REJECT` 的原因去除首尾空白后为空 |
+
 ## 15. 前端接入检查清单
 
 - 使用环境变量维护 `BASE_URL`，不要根据 Controller 注释硬编码 `/api/v1`。
@@ -4149,7 +4403,7 @@ Content-Type: application/json
 - refresh 返回 `10200` 时清理登录态并跳转登录；`10201` 不要重放旧 refresh token。
 - 公开媒体详情需要展示用户互动状态时携带有效 token；未登录时按 `false` 处理。
 - 所有接口先检查 HTTP 状态，再检查 `code === 0`，不要依赖 `msg` 文案。
-- 枚举传英文大写名称，尤其是 `SubmissionStatus`。
+- 枚举传英文大写名称；投稿状态使用 `PENDING/APPROVED/RETURNED/WITHDRAWN/REJECTED`，审核决定使用 `APPROVE/RETURN/REJECT`。
 - 投稿使用多值 FormData 字段；创建投稿传 `tagIds`，修改投稿当前仍传 `tags`，文件均传 `files`；不手动写 multipart boundary。
 - 头像使用字段名为 `file` 的 FormData 上传；限制为 PNG、JPEG、WebP 和 5 MiB。
 - 预签名 URL（包括媒体、投稿预览、头像和下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
@@ -4158,6 +4412,8 @@ Content-Type: application/json
 - 搜索排序值使用 `relevance`、`newest`、`oldest`、`hot`；搜索建议的 `TAG` 类型没有 ID。
 - 批量收藏操作的 `action` 使用大写 `ADD`、`REMOVE`、`MOVE`；`requestedCount` 是媒体 ID 去重后的数量。
 - 管理员用户接口的 `role/status` 使用数字编码；公告状态使用大写字符串 `DRAFT/PUBLISHED/OFFLINE`。
+- 管理员审核提交前必须使用列表或详情返回的最新 `version` 作为 `expectedVersion`；收到 `17502` 时刷新稿件，不要直接使用旧版本重试。
+- 批量审核必须逐项检查 `data.items[].success`；外层 `code === 0` 不表示全部成功。
 - 管理员永久删除媒体会同时删除业务关联和存储文件，前端应增加不可恢复确认。
 - `17000～17002` 当前在公告和管理员用户模块间冲突，错误展示必须结合请求接口。
 - 可用 `/ping/public` 做免登录存活检查，用 `/ping/auth`、`/ping/admin` 分别检查登录和管理员鉴权链路。
