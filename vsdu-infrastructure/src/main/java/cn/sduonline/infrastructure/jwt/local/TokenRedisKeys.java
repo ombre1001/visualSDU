@@ -29,4 +29,11 @@ public class TokenRedisKeys extends RedisKeys {
         return build("auth", "rt-set", userId.toString());
     }
 
+    /**
+     * vsdu:auth:lt:{loginTicketHash}
+     */
+    public static String loginTicketKey(String loginTicketHash) {
+        return build("auth", "lt", loginTicketHash);
+    }
+
 }

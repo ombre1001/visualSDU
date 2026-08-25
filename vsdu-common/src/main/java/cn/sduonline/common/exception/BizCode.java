@@ -28,7 +28,8 @@ public enum BizCode {
     // 凭证轮换相关：102xx
     AUTH_REFRESH_TOKEN_INVALID(10200, "refresh token 无效或已过期", 401),
     AUTH_TOKEN_ROTATE_FAIL(10201, "凭证轮换失败，请稍后再试", 500),
-
+    // 一次性登录票据相关：103xx
+    AUTH_LOGIN_TICKET_INVALID(10300, "非法的一次性登录票据", 400),
 
     //地图：12xxx
     CITY_NOT_FOUND(12000, "城市不存在或已停用", 404),

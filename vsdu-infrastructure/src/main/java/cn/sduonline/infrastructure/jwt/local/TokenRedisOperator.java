@@ -93,13 +93,12 @@ public class TokenRedisOperator {
         );
     }
 
-    public long deleteAllRefreshTokens(Long userId) {
-        Long deleted = redis.execute(
+    public void deleteAllRefreshTokens(Long userId) {
+        redis.execute(
                 DELETE_ALL_REFRESH_TOKENS_SCRIPT,
                 List.of(TokenRedisKeys.userRefreshTokenSetKey(userId)),
                 TokenRedisKeys.refreshTokenKeyPrefix()
         );
-        return deleted == null ? 0 : deleted;
     }
 
     public void storeTokenVersion(Long userId, Integer version) {
@@ -117,6 +116,22 @@ public class TokenRedisOperator {
 
     public void deleteTokenVersionCache(Long userId) {
         redis.del(TokenRedisKeys.tokenVersionKey(userId));
+    }
+
+    public void storeLoginTicket(Long userId, String loginTicket) {
+        String loginTicketHash = HashUtils.sha256Hex(loginTicket);
+        redis.set(
+                TokenRedisKeys.loginTicketKey(loginTicketHash),
+                userId.toString(),
+                Duration.ofSeconds(localJwtProperties.loginTicketExpireSeconds())
+        );
+    }
+
+    public Long consumeLoginTicket(String loginTicket) {
+        String loginTicketHash = HashUtils.sha256Hex(loginTicket);
+        String idStr = redis.getdel(TokenRedisKeys.loginTicketKey(loginTicketHash));
+
+        return idStr == null ? null : Long.valueOf(idStr);
     }
 
 }

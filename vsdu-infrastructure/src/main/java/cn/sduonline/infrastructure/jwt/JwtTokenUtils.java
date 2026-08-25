@@ -33,7 +33,9 @@ public class JwtTokenUtils {
     private final static String ALGO = "PBKDF2WithHmacSHA256";
 
     private final SecureRandom secureRandom = new SecureRandom();
-    private static final int DEFAULT_TOKEN_BYTES = 32;
+
+    private static final int DEFAULT_REFRESH_TOKEN_BYTES = 32;
+    private static final int DEFAULT_LOGIN_TICKET_BYTES = 24;
 
     public JwtTokenUtils(
             SduPassJwtProperties properties,
@@ -91,10 +93,14 @@ public class JwtTokenUtils {
     }
 
     public String generateRefreshToken() {
-        return generateRefreshToken(DEFAULT_TOKEN_BYTES);
+        return generateRandomToken(DEFAULT_REFRESH_TOKEN_BYTES);
     }
 
-    public String generateRefreshToken(int byteLength) {
+    public String generateLoginTicket() {
+        return generateRandomToken(DEFAULT_LOGIN_TICKET_BYTES);
+    }
+
+    public String generateRandomToken(int byteLength) {
         byte[] bytes = new byte[byteLength];
         secureRandom.nextBytes(bytes);
 
@@ -102,5 +108,6 @@ public class JwtTokenUtils {
                 .withoutPadding()
                 .encodeToString(bytes);
     }
+
 
 }

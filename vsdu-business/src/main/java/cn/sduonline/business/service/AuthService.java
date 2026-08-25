@@ -1,8 +1,8 @@
 package cn.sduonline.business.service;
 
+import cn.sduonline.business.data.dto.LoginTicketRequest;
 import cn.sduonline.business.data.dto.RefreshTokenRequest;
 import cn.sduonline.business.data.dto.RegisterRequest;
-import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.vo.AuthResponse;
 import cn.sduonline.business.mapper.UserMapper;
@@ -16,7 +16,6 @@ import cn.sduonline.infrastructure.jwt.sdupass.SduPassClient;
 import cn.sduonline.infrastructure.jwt.sdupass.SduPassJwtPayload;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +30,6 @@ public class AuthService {
     private final SduPassClient sduPassClient;
     private final JwtTokenUtils jwtTokenUtils;
     private final TokenRedisOperator tokenRedisOperator;
-    private final PasswordEncoder passwordEncoder;
 
     private void frozenUserCheck(User u) {
         switch (u.getStatus()) {
@@ -46,7 +44,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse sdupassLogin(String code) {
+    public String sdupassCallback(String code) {
 
         String sduPassJwt;
         try {
@@ -65,23 +63,10 @@ public class AuthService {
 
             frozenUserCheck(u);
 
-            var localJwtPayload = LocalJwtPayload.builder()
-                    .userId(u.getId())
-                    .role(u.getRole().getValue())
-                    .tokenVersion(u.getTokenVersion())
-                    .build();
+            String loginTicket = jwtTokenUtils.generateLoginTicket();
+            tokenRedisOperator.storeLoginTicket(u.getId(), loginTicket);
 
-            String refreshToken = jwtTokenUtils.generateRefreshToken();
-            if (
-                    !tokenRedisOperator.storeRefreshToken(u.getId(), refreshToken)
-            ) throw new BizException(BizCode.INTERNAL_SERVER_ERROR, "登录失败，请稍后再试");
-
-            userMapper.loginRecord(u.getId());
-
-            return new AuthResponse(
-                    jwtTokenUtils.generateAccessToken(localJwtPayload),
-                    refreshToken
-            );
+            return loginTicket;
         } else {
             return register(new RegisterRequest(sduPassJwt));
         }
@@ -91,9 +76,7 @@ public class AuthService {
         return "用户" + casId;
     }
 
-    private static final Integer DEFAULT_TOKEN_VERSION = 0;
-
-    public AuthResponse register(RegisterRequest registerRequest) {
+    public String register(RegisterRequest registerRequest) {
         SduPassJwtPayload jwtPayload;
         try {
             jwtPayload =
@@ -109,20 +92,36 @@ public class AuthService {
                 .build();
         userMapper.insert(user);
 
+        String loginTicket = jwtTokenUtils.generateLoginTicket();
+        tokenRedisOperator.storeLoginTicket(user.getId(), loginTicket);
+
+        return loginTicket;
+    }
+
+    public AuthResponse login(LoginTicketRequest loginTicketRequest) {
+
+        Long userId = Optional.ofNullable(
+                tokenRedisOperator.consumeLoginTicket(loginTicketRequest.loginTicket())
+        ).orElseThrow(() -> new BizException(BizCode.AUTH_LOGIN_TICKET_INVALID));
+
+        User u = userMapper.selectById(userId);
+
+        frozenUserCheck(u);
+
         var localJwtPayload = LocalJwtPayload.builder()
-                .userId(user.getId())
-                .role(UserRole.USER.getValue())
-                .tokenVersion(DEFAULT_TOKEN_VERSION)
+                .userId(u.getId())
+                .role(u.getRole().getValue())
+                .tokenVersion(u.getTokenVersion())
                 .build();
+        String accessToken = jwtTokenUtils.generateAccessToken(localJwtPayload);
 
         String refreshToken = jwtTokenUtils.generateRefreshToken();
         if (
-                !tokenRedisOperator.storeRefreshToken(user.getId(), refreshToken)
-        ) throw new BizException(BizCode.INTERNAL_SERVER_ERROR, "注册失败，请稍后再试");
+                !tokenRedisOperator.storeRefreshToken(u.getId(), refreshToken)
+        ) throw new BizException(BizCode.INTERNAL_SERVER_ERROR, "登录失败，请稍后再试");
 
         return new AuthResponse(
-                jwtTokenUtils.generateAccessToken(localJwtPayload),
-                refreshToken
+                accessToken, refreshToken
         );
     }
 

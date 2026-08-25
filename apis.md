@@ -15,7 +15,7 @@ GET {BASE_URL}/cities
 
 ### 1.2 统一响应体
 
-所有 Controller 正常响应和已处理异常都使用相同响应体：
+除 SDU Pass 登录成功回调外，Controller 正常响应和已处理异常都使用相同响应体。SDU Pass 登录成功回调返回无响应体的 HTTP `302`，详见 3.1 节。
 
 | 字段 | JSON 类型 | 可能为 `null` | 说明 |
 |---|---|---:|---|
@@ -49,7 +49,7 @@ GET {BASE_URL}/cities
 注意：
 
 - 判断业务成功应使用 `code === 0`，同时仍应先检查 HTTP 状态。
-- 所有成功接口当前均返回 HTTP `200`；创建接口不是 `201`，无数据接口也不是 `204`。
+- 除 SDU Pass 登录成功回调返回 HTTP `302` 外，其他成功接口当前均返回 HTTP `200`；创建接口不是 `201`，无数据接口也不是 `204`。
 - `msg` 可能是枚举默认文案，也可能被具体业务文案覆盖，不建议用文案判断错误类型。
 - JSON 字段校验失败时，`data` 是 `{ [field: string]: string }`；其他错误通常为 `null`。
 
@@ -102,11 +102,12 @@ token: <accessToken>
 
 ## 2. 接口总览
 
-至今开发完成的共有 80 个实际映射的接口。
+至今开发完成的共有 81 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
-| 认证 | GET | `/auth/sdupass-login` | 公开 | Query | 凭证对象 |
+| 认证 | GET | `/auth/sdupass/callback` | 公开 | Query | HTTP 302，无响应体 |
+| 认证 | POST | `/auth/login` | 公开 | JSON | 凭证对象 |
 | 认证 | POST | `/auth/refresh` | 公开 | JSON | 凭证对象 |
 | 认证 | DELETE | `/auth/logout` | 登录 | JSON | `null` |
 | 个人中心 | GET | `/users/me` | 登录 | - | 个人资料对象 |
@@ -192,7 +193,7 @@ token: <accessToken>
 ### 3.1 SDU Pass 登录回调
 
 ```http
-GET /auth/sdupass-login?code=<callbackCode>
+GET /auth/sdupass/callback?code=<callbackCode>
 ```
 
 权限：公开。
@@ -203,7 +204,44 @@ Query 参数：
 |---|---:|---:|---|
 | `code` | string | 是 | SDU Pass 登录完成后回调携带的临时凭证 |
 
-已有用户直接登录，首次访问的统一认证用户会自动创建账号。
+已有用户完成统一认证校验，首次访问的统一认证用户会自动创建账号。校验成功后，后端生成一个有效期为 `120` 秒的一次性 `loginTicket`，返回 HTTP `302`，并将票据作为前端登录完成页的 Query 参数。该接口不直接签发 access token 和 refresh token。
+
+成功响应示例：
+
+```http
+HTTP/1.1 302 Found
+Location: http://localhost:5173/auth/return?loginTicket=<loginTicket>
+Cache-Control: no-store
+```
+
+浏览器会自动跟随 `Location` 跳转。重定向基础地址来自后端配置 `vsdu.auth.frontend-return-url`；当前默认值为 `http://localhost:5173/auth/return`。
+
+`loginTicket` 是短期、一次性凭据。前端取得后应立即调用 3.2 节的 `/auth/login` 接口兑换正式凭证，不应把它作为 access token 使用或长期保存。
+
+主要错误：
+
+- `10101`：SDU Pass 换取 token 失败。
+- `10104`：账号被冻结或停用。
+- `500`：用户创建、登录票据存储等内部过程失败。
+
+### 3.2 一次性登录票据兑换
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
+
+权限：公开；不需要 access token。
+
+请求体：
+
+```json
+{
+  "loginTicket": "从登录回调取得的一次性票据"
+}
+```
+
+后端会原子地读取并删除 `loginTicket`。同一票据只能成功兑换一次；无论票据已经使用还是已经过期，再次提交都按无效票据处理。票据校验成功后，后端根据对应用户的当前角色和 token 版本签发 access token 与 refresh token。
 
 响应 `data` 字段：
 
@@ -228,11 +266,12 @@ JSON 响应示例：
 
 主要错误：
 
-- `10101`：SDU Pass 换取 token 失败。
+- `400`：请求体缺失、不可解析或 `loginTicket` 为空。
 - `10104`：账号被冻结或停用。
-- `500`：登录凭证存储等内部过程失败。
+- `10300`：loginTicket 无效、已过期或已被使用。
+- `500`：refresh token 存储等内部过程失败；loginTicket 已被消费，前端应重新发起统一认证。
 
-### 3.2 刷新令牌
+### 3.3 刷新令牌
 
 ```http
 POST /auth/refresh
@@ -279,7 +318,7 @@ JSON 响应示例：
 - `10200`：refresh token 无效或已过期。
 - `10201`：refresh token 原子轮换失败。
 
-### 3.3 退出登录
+### 3.4 退出登录
 
 ```http
 DELETE /auth/logout
@@ -4277,6 +4316,7 @@ Content-Type: application/json
 | 401 | `10106` | access token 无效 | 签名、格式、token 版本或角色内容无效 |
 | 401 | `10200` | refresh token 无效或已过期 | 需要重新登录 |
 | 500 | `10201` | 凭证轮换失败，请稍后再试 | 并发刷新或 Redis 原子轮换失败；不要继续使用旧 token |
+| 400 | `10300` | 非法的一次性登录票据 | loginTicket 无效、已过期或已被使用，需要重新发起统一认证 |
 
 ### 14.2 地图
 

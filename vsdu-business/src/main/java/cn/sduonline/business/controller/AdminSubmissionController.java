@@ -26,6 +26,10 @@ import java.time.LocalDateTime;
 public class AdminSubmissionController {
     private final AdminSubmissionService service;
 
+    /**
+     * 管理端稿件列表
+     * 按状态、关键词、投稿人、地点及投稿时间分页筛选稿件，并支持按投稿时间排序。
+     */
     @AdminApi
     @GetMapping
     public Result<PageResult<AdminSubmissionSummaryVO>> list(
@@ -46,6 +50,10 @@ public class AdminSubmissionController {
         ));
     }
 
+    /**
+     * 管理端稿件详情
+     * 查询指定稿件、投稿人统计、关联资源及最近审核记录。
+     */
     @AdminApi
     @GetMapping("/{submissionId}")
     public Result<AdminSubmissionDetailVO> detail(
@@ -54,6 +62,10 @@ public class AdminSubmissionController {
         return Result.success(service.detail(submissionId));
     }
 
+    /**
+     * 审核单个稿件
+     * 根据审核决定处理待审核稿件，并使用请求中的期望版本执行乐观锁校验。
+     */
     @AdminApi
     @PostMapping("/{submissionId}/review")
     public Result<AdminSubmissionReviewResultVO> review(
@@ -66,6 +78,10 @@ public class AdminSubmissionController {
         );
     }
 
+    /**
+     * 批量审核稿件
+     * 逐项独立审核多个稿件，并汇总每项的成功或失败结果。
+     */
     @AdminApi
     @PostMapping("/reviews/batch")
     public Result<AdminBatchReviewResultVO> batchReview(
@@ -77,6 +93,10 @@ public class AdminSubmissionController {
         );
     }
 
+    /**
+     * 稿件审核记录
+     * 分页查询指定稿件的历次审核决定、状态变化及审核人信息。
+     */
     @AdminApi
     @GetMapping("/{submissionId}/review-logs")
     public Result<PageResult<AdminSubmissionReviewLogVO>> reviewLogs(

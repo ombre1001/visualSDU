@@ -28,6 +28,10 @@ vsdu:
       local-secret: ${JWT_SECRET}
       access-token-expire-seconds: 3600
       refresh-token-expire-seconds: 604800
+      login-ticket-expire-seconds: 120
+
+  auth:
+    frontend-return-url: http://localhost:5173/auth/return
 
 logging:
   pattern:

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record LocalJwtProperties(
         Long accessTokenExpireSeconds,
         Long refreshTokenExpireSeconds,
+        Long loginTicketExpireSeconds,
         String localSecret
 ) {
 }
