@@ -41,7 +41,7 @@
             <if test="request.address != null">address = #{value.address},</if>
             <if test="request.longitude != null">longitude = #{value.longitude},</if>
             <if test="request.latitude != null">latitude = #{value.latitude},</if>
-            <if test="request.coverUrl != null">cover_key = #{value.coverUrl},</if>
+            <if test="request.coverUrl != null">cover_key = #{value.coverKey},</if>
             <if test="request.description != null">description = #{value.description},</if>
             <if test="request.sortOrder != null">sort_order = #{value.sortOrder},</if>
             <if test="request.status != null">status = #{value.status},</if>

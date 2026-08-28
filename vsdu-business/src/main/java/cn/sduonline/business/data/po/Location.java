@@ -27,7 +27,7 @@ public class Location {
 
     private BigDecimal latitude;
 
-    private String coverUrl;
+    private String coverKey;
 
     private String description;
 

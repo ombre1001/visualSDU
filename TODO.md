@@ -117,7 +117,7 @@ DTO 注释称 `REMOVE` 时 `folderId` 表示源收藏夹，但服务实现忽略
 
 ### 当前问题
 
-当前实现只清除手动配置的 `coverMediaId`；响应转换时仍会回退到收藏夹中最近收藏的可见媒体，因此响应中的 `coverMediaId` 和 `coverUrl` 可能继续非空。
+当前实现只清除手动配置的 `coverMediaId`；响应转换时仍会回退到收藏夹中最近收藏的可见媒体，因此响应中的 `coverMediaId` 和 `coverKey` 可能继续非空。
 
 ### 待处理
 

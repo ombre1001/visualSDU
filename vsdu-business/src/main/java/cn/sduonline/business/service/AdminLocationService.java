@@ -32,7 +32,7 @@ public class AdminLocationService {
         location.setCampusId(r.campusId()); location.setName(required(r.name(), "地点名称不能为空"));
         location.setCategoryCode(nullable(r.categoryCode())); location.setAddress(nullable(r.address()));
         location.setLongitude(r.longitude()); location.setLatitude(r.latitude());
-        location.setCoverUrl(nullable(r.coverUrl())); location.setDescription(nullable(r.description()));
+        location.setCoverKey(nullable(r.coverUrl())); location.setDescription(nullable(r.description()));
         location.setSortOrder(Objects.requireNonNullElse(r.sortOrder(), 0));
         location.setStatus(Objects.requireNonNullElse(r.status(), ENABLED));
         location.setCreatedAt(now); location.setUpdatedAt(now);
@@ -55,7 +55,7 @@ public class AdminLocationService {
         if (r.address() != null) { location.setAddress(nullable(r.address())); }
         if (r.longitude() != null) { location.setLongitude(r.longitude()); }
         if (r.latitude() != null) { location.setLatitude(r.latitude()); }
-        if (r.coverUrl() != null) { location.setCoverUrl(nullable(r.coverUrl())); }
+        if (r.coverUrl() != null) { location.setCoverKey(nullable(r.coverUrl())); }
         if (r.description() != null) { location.setDescription(nullable(r.description())); }
         if (r.sortOrder() != null) { location.setSortOrder(r.sortOrder()); }
         if (r.status() != null) { location.setStatus(r.status()); }
@@ -73,7 +73,7 @@ public class AdminLocationService {
 
     private AdminLocationVO toVO(Location l) {
         return new AdminLocationVO(l.getId(), l.getCampusId(), l.getName(), l.getCategoryCode(),
-                l.getAddress(), l.getLongitude(), l.getLatitude(), l.getCoverUrl(), l.getDescription(),
+                l.getAddress(), l.getLongitude(), l.getLatitude(), l.getCoverKey(), l.getDescription(),
                 l.getSortOrder(), l.getStatus(), l.getCreatedAt(), l.getUpdatedAt());
     }
 

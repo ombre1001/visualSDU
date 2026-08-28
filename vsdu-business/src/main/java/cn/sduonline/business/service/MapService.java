@@ -115,7 +115,7 @@ public class MapService {
                         .name(location.getName())
                         .longitude(location.getLongitude())
                         .latitude(location.getLatitude())
-                        .coverUrl(location.getCoverUrl())
+                        .coverUrl(location.getCoverKey())
                         .build())
                 .toList();
     }

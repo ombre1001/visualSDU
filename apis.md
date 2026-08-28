@@ -98,7 +98,7 @@ token: <accessToken>
 - ID、计数和经纬度在 JSON 中均为数字。
 - 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建投稿的标签 ID 使用 `tagIds` 同名多值字段，修改投稿的标签名称仍使用 `tags` 同名多值字段。
 - 媒体图片、缩略图、投稿预览、用户头像和下载地址由 R2 预签名生成，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
-- 城市、校区、地点的 `coverUrl` 是数据库直接返回值，不走上述预签名逻辑。
+- 城市、校区、地点的 `coverKey` 是数据库直接返回值，不走上述预签名逻辑。
 
 ## 2. 接口总览
 
@@ -2304,7 +2304,7 @@ Content-Type: application/json
 | `address` | string | 否 | 最长 255；空白保存为 `null` |
 | `longitude` | number | 是 | `-180～180` |
 | `latitude` | number | 是 | `-90～90` |
-| `coverUrl` | string | 否 | 最长 1000；数据库直存 URL |
+| `coverKey` | string | 否 | 最长 1000；数据库直存 URL |
 | `description` | string | 否 | 最长 2000 |
 | `sortOrder` | number | 否 | 非负，默认 `0` |
 | `status` | number | 否 | `0` 停用、`1` 启用，默认 `1` |
@@ -2330,7 +2330,7 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id`、`campusId` | number | 否 | 地点、校区 ID |
 | `data.name` | string | 否 | 地点名称 |
-| `data.categoryCode`、`address`、`coverUrl`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.categoryCode`、`address`、`coverKey`、`description` | string | 是 | 分类、地址、封面、描述 |
 | `data.longitude`、`latitude` | number | 否 | 经纬度 |
 | `data.sortOrder`、`status` | number | 否 | 排序值、状态 `0/1` |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2382,7 +2382,7 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id`、`campusId` | number | 否 | 地点、校区 ID |
 | `data.name` | string | 否 | 地点名称 |
-| `data.categoryCode`、`address`、`coverUrl`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.categoryCode`、`address`、`coverKey`、`description` | string | 是 | 分类、地址、封面、描述 |
 | `data.longitude`、`latitude` | number | 否 | 经纬度 |
 | `data.sortOrder`、`status` | number | 否 | 排序值和更新后状态 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2689,7 +2689,7 @@ Content-Type: application/json
 | `name` | string | 是 | 非空，最长 100 |
 | `slug` | string | 是 | 1～64 位，小写字母或数字开头，只含小写字母、数字、连字符；全局唯一 |
 | `description` | string | 否 | 最长 1000，空白保存为 `null` |
-| `coverUrl` | string | 否 | 最长 1000，数据库直存 URL |
+| `coverKey` | string | 否 | 最长 1000，数据库直存 URL |
 | `status` | number | 否 | `0` 停用、`1` 启用，默认 `1` |
 | `sortOrder` | number | 否 | 非负，默认 `0` |
 | `mediaIds` | array&lt;number&gt; | 否 | 最多 200 个正数 ID，不得重复；按数组顺序保存，默认空数组 |
@@ -2704,7 +2704,7 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id` | number | 否 | 专题 ID |
 | `data.name`、`slug` | string | 否 | 名称、标识 |
-| `data.description`、`coverUrl` | string | 是 | 描述、封面地址 |
+| `data.description`、`coverKey` | string | 是 | 描述、封面地址 |
 | `data.status`、`sortOrder` | number | 否 | 状态、排序值 |
 | `data.mediaIds` | array&lt;number&gt; | 否 | 关联媒体 ID，保持配置顺序 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2731,7 +2731,7 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id` | number | 否 | 专题 ID |
 | `data.name`、`slug` | string | 否 | 更新后的名称、标识 |
-| `data.description`、`coverUrl` | string | 是 | 描述、封面 |
+| `data.description`、`coverKey` | string | 是 | 描述、封面 |
 | `data.status`、`sortOrder` | number | 否 | 状态、排序值 |
 | `data.mediaIds` | array&lt;number&gt; | 否 | 更新后的媒体 ID 顺序 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |

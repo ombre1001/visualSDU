@@ -78,7 +78,7 @@ public class LocationService {
                 .address(location.getAddress())
                 .longitude(location.getLongitude())
                 .latitude(location.getLatitude())
-                .coverUrl(location.getCoverUrl())
+                .coverUrl(location.getCoverKey())
                 .description(location.getDescription())
                 .build();
     }
@@ -194,7 +194,7 @@ public class LocationService {
                 .address(location.getAddress())
                 .longitude(location.getLongitude())
                 .latitude(location.getLatitude())
-                .coverUrl(location.getCoverUrl())
+                .coverUrl(location.getCoverKey())
                 .build();
     }
 }
