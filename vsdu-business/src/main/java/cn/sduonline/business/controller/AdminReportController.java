@@ -28,7 +28,10 @@ import java.time.LocalDateTime;
 public class AdminReportController {
     private final AdminReportService reportService;
 
-    /** 按状态、目标类型、理由、举报人和时间范围分页查询举报。 */
+    /**
+     * 分页查询举报列表
+     * 按状态、目标类型、理由、举报人和时间范围分页查询举报。
+     */
     @AdminApi
     @GetMapping
     public Result<PageResult<AdminReportSummaryVO>> list(
@@ -49,7 +52,10 @@ public class AdminReportController {
         ));
     }
 
-    /** 查询举报人、举报目标、相关举报数量和完整处理历史。 */
+    /**
+     * 查询举报详情
+     * 查询举报人、举报目标、相关举报数量和完整处理历史。
+     */
     @AdminApi
     @GetMapping("/{reportId}")
     public Result<AdminReportDetailVO> detail(
@@ -58,7 +64,10 @@ public class AdminReportController {
         return Result.success(reportService.detail(reportId));
     }
 
-    /** 使用期望版本提交举报处理决定并执行对应资源处置。 */
+    /**
+     * 提交举报处理决定
+     * 使用期望版本处理举报并执行对应的资源处置动作。
+     */
     @AdminApi
     @PostMapping("/{reportId}/decision")
     public Result<AdminReportDecisionResultVO> decide(

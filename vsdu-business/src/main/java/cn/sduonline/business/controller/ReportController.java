@@ -22,8 +22,8 @@ public class ReportController {
     private final ReportService reportService;
 
     /**
-     * 举报理由下拉列表
-     * 查询当前可用的举报理由，供客户端构建举报理由下拉列表。
+     * 获取举报理由列表
+     * 查询当前启用的举报理由，供客户端生成举报理由选项。
      */
     @PublicApi
     @GetMapping("/reasons")
@@ -31,6 +31,10 @@ public class ReportController {
         return Result.success(reportService.reasons());
     }
 
+    /**
+     * 提交媒体举报
+     * 当前登录用户对指定媒体提交举报。
+     */
     @PostMapping("/media")
     public Result<ReportVO> createMediaReport(
             @Valid @RequestBody CreateMediaReportRequest request,
@@ -44,6 +48,10 @@ public class ReportController {
         );
     }
 
+    /**
+     * 提交用户举报
+     * 当前登录用户对指定用户提交举报。
+     */
     @PostMapping("/user")
     public Result<ReportVO> createUserReport(
             @Valid @RequestBody CreateUserReportRequest request,
