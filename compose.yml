@@ -31,6 +31,9 @@ services:
 
     environment:
       TZ: Asia/Shanghai
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+
       MYSQL_DATABASE: vsdu-db
       MYSQL_USER: ${VSDU_MYSQL_USERNAME}
       MYSQL_PASSWORD: ${VSDU_MYSQL_PASSWORD}
