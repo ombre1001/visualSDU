@@ -139,6 +139,7 @@ public enum BizCode {
     REPORT_ACTION_REQUIRED(18008, "确认举报成立时必须指定处置动作", 400),
     REPORT_ACTION_INVALID(18009, "举报处置动作不合法", 400),
     MEDIA_ACTIVE_REPORT_EXISTS(18010, "媒体存在尚未处理的举报，暂时无法删除", 409),
+    REPORT_SELF_TARGET_FORBIDDEN(18011, "不能举报自己", 400),
 
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),

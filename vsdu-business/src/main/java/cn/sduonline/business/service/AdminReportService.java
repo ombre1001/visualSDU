@@ -6,6 +6,7 @@ import cn.sduonline.business.data.enums.*;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Report;
 import cn.sduonline.business.data.po.ReportOperationLog;
+import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.projection.AdminReportDetailRow;
 import cn.sduonline.business.data.projection.AdminReportOperationLogRow;
 import cn.sduonline.business.data.projection.AdminReportSummaryRow;
@@ -13,6 +14,7 @@ import cn.sduonline.business.data.vo.*;
 import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.business.mapper.ReportMapper;
 import cn.sduonline.business.mapper.ReportOperationLogMapper;
+import cn.sduonline.business.mapper.UserMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
@@ -42,6 +44,7 @@ public class AdminReportService {
     private final ReportMapper reportMapper;
     private final ReportOperationLogMapper operationLogMapper;
     private final MediaMapper mediaMapper;
+    private final UserMapper userMapper;
     private final AdminMediaService adminMediaService;
     private final AdminUserService adminUserService;
     private final FileStorage fileStorage;
@@ -126,8 +129,11 @@ public class AdminReportService {
 
         String reason = normalize(request.reason());
         List<AdminReportDecisionActionRequest> actions = normalizeActions(request.actions());
-        validateDecision(request.decision(), reason, actions);
-        Media targetMedia = requiresTarget(actions) ? lockTargetMedia(report) : null;
+        ReportTargetType targetType = ReportTargetType.valueOf(report.getTargetType());
+        validateDecision(request.decision(), reason, actions, targetType);
+        ReportActionTarget actionTarget = requiresTarget(actions)
+                ? lockActionTarget(report, targetType)
+                : null;
 
         LocalDateTime processedAt = LocalDateTime.now();
         ReportStatus afterStatus = request.decision().getTargetStatus();
@@ -138,7 +144,7 @@ public class AdminReportService {
         if (updated != 1) throw new BizException(BizCode.REPORT_VERSION_CONFLICT);
 
         List<ReportActionResultVO> actionResults = executeActions(
-                operatorId, report, targetMedia, actions
+                operatorId, report, actionTarget, actions
         );
         ReportOperationLog log = new ReportOperationLog();
         log.setReportId(reportId);
@@ -163,7 +169,8 @@ public class AdminReportService {
     private void validateDecision(
             ReportDecision decision,
             String reason,
-            List<AdminReportDecisionActionRequest> actions
+            List<AdminReportDecisionActionRequest> actions,
+            ReportTargetType targetType
     ) {
         if (decision == ReportDecision.CONFIRM && reason == null) {
             throw new BizException(BizCode.REPORT_DECISION_REASON_REQUIRED);
@@ -185,6 +192,11 @@ public class AdminReportService {
                 && types.contains(ReportActionType.RESTORE_MEDIA)) {
             throw new BizException(BizCode.REPORT_ACTION_INVALID, "不能同时隐藏和恢复同一媒体");
         }
+        if (targetType == ReportTargetType.USER
+                && (types.contains(ReportActionType.HIDE_MEDIA)
+                || types.contains(ReportActionType.RESTORE_MEDIA))) {
+            throw new BizException(BizCode.REPORT_ACTION_INVALID, "用户举报不支持媒体处置动作");
+        }
         if (decision != ReportDecision.CONFIRM
                 && types.stream().anyMatch(type -> type != ReportActionType.NO_ACTION)) {
             throw new BizException(BizCode.REPORT_ACTION_INVALID, "举报不成立或关闭时不能执行资源处置");
@@ -203,19 +215,21 @@ public class AdminReportService {
         }
     }
 
-    private Media lockTargetMedia(Report report) {
-        if (!ReportTargetType.MEDIA.name().equals(report.getTargetType())) {
-            throw new BizException(BizCode.REPORT_ACTION_INVALID, "当前举报目标不支持该处置动作");
+    private ReportActionTarget lockActionTarget(Report report, ReportTargetType targetType) {
+        if (targetType == ReportTargetType.MEDIA) {
+            Media media = mediaMapper.selectByIdForUpdate(report.getTargetId());
+            if (media == null) throw new BizException(BizCode.REPORT_TARGET_NOT_FOUND);
+            return new ReportActionTarget(media, media.getUploaderId());
         }
-        Media media = mediaMapper.selectByIdForUpdate(report.getTargetId());
-        if (media == null) throw new BizException(BizCode.REPORT_TARGET_NOT_FOUND);
-        return media;
+        User user = userMapper.selectByIdForUpdate(report.getTargetId());
+        if (user == null) throw new BizException(BizCode.REPORT_TARGET_NOT_FOUND);
+        return new ReportActionTarget(null, user.getId());
     }
 
     private List<ReportActionResultVO> executeActions(
             Long operatorId,
             Report report,
-            Media targetMedia,
+            ReportActionTarget actionTarget,
             List<AdminReportDecisionActionRequest> actions
     ) {
         List<ReportActionResultVO> results = new ArrayList<>(actions.size());
@@ -225,6 +239,7 @@ public class AdminReportService {
                         action.type(), report.getTargetId(), "仅记录处理结论"
                 ));
                 case HIDE_MEDIA -> {
+                    Media targetMedia = actionTarget.media();
                     if (Objects.equals(targetMedia.getStatus(), HIDDEN_MEDIA)) {
                         results.add(new ReportActionResultVO(
                                 action.type(), targetMedia.getId(), "媒体已处于隐藏状态"
@@ -238,6 +253,7 @@ public class AdminReportService {
                     }
                 }
                 case RESTORE_MEDIA -> {
+                    Media targetMedia = actionTarget.media();
                     if (Objects.equals(targetMedia.getStatus(), VISIBLE_MEDIA)) {
                         results.add(new ReportActionResultVO(
                                 action.type(), targetMedia.getId(), "媒体已处于可见状态"
@@ -251,15 +267,15 @@ public class AdminReportService {
                     }
                 }
                 case FREEZE_USER -> {
-                    if (targetMedia.getUploaderId() == null) {
-                        throw new BizException(BizCode.REPORT_ACTION_INVALID, "该媒体没有可冻结的上传用户");
+                    if (actionTarget.userId() == null) {
+                        throw new BizException(BizCode.REPORT_ACTION_INVALID, "举报目标没有可冻结的用户");
                     }
                     adminUserService.updateStatus(
-                            operatorId, targetMedia.getUploaderId(), UserStatus.FROZEN,
+                            operatorId, actionTarget.userId(), UserStatus.FROZEN,
                             action.frozenUntil(), normalize(action.reason())
                     );
                     results.add(new ReportActionResultVO(
-                            action.type(), targetMedia.getUploaderId(), "媒体上传用户已冻结"
+                            action.type(), actionTarget.userId(), "目标用户已冻结"
                     ));
                 }
             }
@@ -322,5 +338,8 @@ public class AdminReportService {
 
     private String url(String objectKey) {
         return objectKey == null || objectKey.isBlank() ? null : fileStorage.getUrl(objectKey);
+    }
+
+    private record ReportActionTarget(Media media, Long userId) {
     }
 }

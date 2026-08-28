@@ -12,6 +12,8 @@ import java.util.List;
 
 public interface UserMapper extends BaseMapper<User> {
 
+    User selectByIdForUpdate(@Param("userId") Long userId);
+
     long countAdmin(
             @Param("keyword") String keyword,
             @Param("role") Integer role,
@@ -69,5 +71,8 @@ public interface UserMapper extends BaseMapper<User> {
 
     boolean existsPhone(String phone);
 
-    void updatePhoneById(Long userId, String phone);
+    void updatePhoneById(
+            @Param("userId") String userId,
+            @Param("phone") String phone
+    );
 }

@@ -69,9 +69,19 @@
             COALESCE(NULLIF(reporter.nickname, ''), NULLIF(reporter.name, ''), reporter.cas_id) AS reporter_name,
             r.target_type,
             r.target_id,
-            CASE WHEN r.target_type = 'MEDIA' THEN media.title END AS target_title,
-            CASE WHEN r.target_type = 'MEDIA'
-                THEN COALESCE(NULLIF(media.thumbnail_key, ''), media.object_key)
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN media.title
+                WHEN r.target_type = 'USER' THEN COALESCE(
+                    NULLIF(target_user.nickname, ''),
+                    NULLIF(target_user.name, ''),
+                    target_user.cas_id
+                )
+            END AS target_title,
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN COALESCE(
+                    NULLIF(media.thumbnail_key, ''), media.object_key
+                )
+                WHEN r.target_type = 'USER' THEN target_user.avatar_key
             END AS target_thumbnail_key,
             r.reason_code,
             reason.name AS reason_name,
@@ -87,6 +97,10 @@
         LEFT JOIN report_reason_type reason ON reason.code = r.reason_code
         LEFT JOIN `user` processor ON processor.id = r.processed_by
         LEFT JOIN media ON r.target_type = 'MEDIA' AND media.id = r.target_id
+        LEFT JOIN `user` target_user
+            ON r.target_type = 'USER'
+            AND target_user.id = r.target_id
+            AND target_user.deleted = 0
         <include refid="adminConditions"/>
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT #{offset}, #{size}
@@ -116,14 +130,34 @@
             r.target_id,
             CASE
                 WHEN r.target_type = 'MEDIA' AND media.id IS NOT NULL THEN TRUE
+                WHEN r.target_type = 'USER' AND target_user.id IS NOT NULL THEN TRUE
                 ELSE FALSE
             END AS target_exists,
-            CASE WHEN r.target_type = 'MEDIA' THEN media.title END AS target_title,
-            CASE WHEN r.target_type = 'MEDIA' THEN media.description END AS target_description,
-            CASE WHEN r.target_type = 'MEDIA' THEN media.uploader_id END AS target_uploader_id,
-            CASE WHEN r.target_type = 'MEDIA' THEN media.status END AS target_status,
-            CASE WHEN r.target_type = 'MEDIA'
-                THEN COALESCE(NULLIF(media.thumbnail_key, ''), media.object_key)
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN media.title
+                WHEN r.target_type = 'USER' THEN COALESCE(
+                    NULLIF(target_user.nickname, ''),
+                    NULLIF(target_user.name, ''),
+                    target_user.cas_id
+                )
+            END AS target_title,
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN media.description
+                WHEN r.target_type = 'USER' THEN target_user.bio
+            END AS target_description,
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN media.uploader_id
+                WHEN r.target_type = 'USER' THEN target_user.id
+            END AS target_uploader_id,
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN media.status
+                WHEN r.target_type = 'USER' THEN target_user.status
+            END AS target_status,
+            CASE
+                WHEN r.target_type = 'MEDIA' THEN COALESCE(
+                    NULLIF(media.thumbnail_key, ''), media.object_key
+                )
+                WHEN r.target_type = 'USER' THEN target_user.avatar_key
             END AS target_thumbnail_key,
             r.reason_code,
             reason.name AS reason_name,
@@ -150,6 +184,10 @@
         LEFT JOIN report_reason_type reason ON reason.code = r.reason_code
         LEFT JOIN `user` processor ON processor.id = r.processed_by
         LEFT JOIN media ON r.target_type = 'MEDIA' AND media.id = r.target_id
+        LEFT JOIN `user` target_user
+            ON r.target_type = 'USER'
+            AND target_user.id = r.target_id
+            AND target_user.deleted = 0
         WHERE r.id = #{reportId}
         LIMIT 1
     </select>

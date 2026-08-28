@@ -135,7 +135,8 @@ token: <accessToken>
 | 媒体 | POST | `/media/{mediaId}/downloads` | 登录 | Path | 下载信息对象 |
 | 媒体 | GET | `/media/{mediaId}/related` | 公开 | Query | 媒体摘要对象数组 |
 | 举报 | GET | `/reports/reasons` | 公开 | - | 举报理由对象数组 |
-| 举报 | POST | `/reports` | 登录 | JSON | 举报提交结果对象 |
+| 举报 | POST | `/reports/media` | 登录 | JSON | 媒体举报提交结果对象 |
+| 举报 | POST | `/reports/user` | 登录 | JSON | 用户举报提交结果对象 |
 | 搜索 | GET | `/search/suggestions` | 公开 | Query | 搜索建议对象数组 |
 | 搜索 | GET | `/search/media` | 公开 | Query | 媒体摘要分页对象 |
 | 发现 | GET | `/discovery/home` | 公开 | Query | 发现首页聚合对象 |
@@ -4335,73 +4336,510 @@ Content-Type: application/json
 
 ## 14. 举报与举报管理
 
-### 14.1 查询举报理由
+举报功能支持举报媒体和用户。用户先查询可用理由，再通过对应目标类型的专用接口提交举报；管理员通过列表和详情取得最新 `version`，最后提交处理决定及可选资源处置动作。
+
+### 14.1 举报状态、处理决定与处置动作
+
+举报状态：
+
+| JSON 值 | 含义 | 是否为进行中状态 |
+|---|---|---:|
+| `PENDING` | 待处理；新举报的初始状态 | 是 |
+| `PROCESSING` | 处理中 | 是 |
+| `CONFIRMED` | 举报成立，处理完成 | 否 |
+| `DISMISSED` | 举报不成立，处理完成 | 否 |
+| `CLOSED` | 举报关闭，处理完成 | 否 |
+
+处理决定与终态：
+
+| `decision` | 处理后状态 | 约束 |
+|---|---|---|
+| `CONFIRM` | `CONFIRMED` | 必须填写处理理由，并至少提供一个处置动作 |
+| `DISMISS` | `DISMISSED` | 不能执行 `NO_ACTION` 以外的资源处置 |
+| `CLOSE` | `CLOSED` | 不能执行 `NO_ACTION` 以外的资源处置 |
+
+主要状态流转：
+
+```text
+PENDING / PROCESSING ──CONFIRM──> CONFIRMED
+        │
+        ├─────────────DISMISS───> DISMISSED
+        │
+        └─────────────CLOSE─────> CLOSED
+```
+
+当前没有把举报从 `PENDING` 修改为 `PROCESSING` 的接口；该状态已在数据库、查询条件和处理逻辑中预留。处理决定只能作用于 `PENDING` 或 `PROCESSING`，终态举报不能再次处理。
+
+处置动作：
+
+| `type` | 目标 | 行为和约束 |
+|---|---|---|
+| `HIDE_MEDIA` | 被举报媒体 | 隐藏媒体；已经隐藏时按成功返回 |
+| `RESTORE_MEDIA` | 被举报媒体 | 恢复媒体；已经可见时按成功返回 |
+| `FREEZE_USER` | 用户举报的目标用户，或媒体举报的上传者 | 必须提供未来的 `frozenUntil` 和非空 `reason` |
+| `NO_ACTION` | 举报目标 | 只记录处理结论，不修改媒体或用户状态 |
+
+同一次请求中的动作类型不能重复；`NO_ACTION` 不能和其他动作并存；`HIDE_MEDIA` 与 `RESTORE_MEDIA` 不能同时出现。第一版不支持举报证据附件。
+
+### 14.2 查询举报理由
 
 ```http
 GET /reports/reasons
 ```
 
-公开接口，按后台字典顺序返回所有已启用理由。每项包含 `code`、`name` 和可空的 `description`；提交举报时使用 `code` 作为 `reasonType`。
+权限：公开。只返回已启用的举报理由，按后台 `sortOrder`、理由编码升序排列。响应不包含 `sortOrder`；提交举报时将 `code` 作为请求字段 `reasonType`。
 
-### 14.2 提交举报
+响应 `data` 字段：
 
-```http
-POST /reports
-token: <accessToken>
-Content-Type: application/json
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | array&lt;object&gt; | 否 | 可用举报理由数组；无可用理由时为 `[]` |
+| `data[].code` | string | 否 | 稳定理由编码，例如 `COPYRIGHT` |
+| `data[].name` | string | 否 | 前端展示名称 |
+| `data[].description` | string | 是 | 理由说明 |
 
+JSON 响应示例：
+
+```json
 {
-  "targetType": "MEDIA",
-  "targetId": 501,
-  "reasonType": "COPYRIGHT",
-  "description": "该图片未经原作者授权"
+  "code": 0,
+  "msg": "成功",
+  "data": [
+    {
+      "code": "COPYRIGHT",
+      "name": "侵犯版权",
+      "description": "未经授权使用他人享有著作权的内容"
+    },
+    {
+      "code": "ILLEGAL_CONTENT",
+      "name": "违法违规",
+      "description": "涉嫌违反法律法规或平台规范"
+    }
+  ],
+  "timestamp": 1788084000000
 }
 ```
 
-第一版 `targetType` 只接受 `MEDIA`，暂不支持证据附件。`description` 最长 1000 字符。后端限制同一用户每小时最多提交 10 条举报，并阻止同一用户对同一目标存在多条进行中的举报。
+### 14.3 提交举报
 
-成功时 `data` 包含 `id`、`targetType`、`targetId`、`reasonType`、`reasonName`、`description`、`status`、`createdAt` 和 `version`；初始状态为 `PENDING`，版本为 `0`。
+媒体举报：
 
-### 14.3 管理端举报列表
+```http
+POST /reports/media
+token: <accessToken>
+Content-Type: application/json
+```
+
+请求字段：
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `mediaId` | number | 是 | 正整数；目标媒体必须存在且当前可见 |
+| `reasonType` | string | 是 | 非空，最长 32；必须来自 14.2 返回的启用理由；后端去除首尾空白并转为大写 |
+| `description` | string | 否 | 最长 1000；空白按 `null` 保存 |
+
+```json
+{
+  "mediaId": 501,
+  "reasonType": "COPYRIGHT",
+  "description": "该图片疑似未经原作者授权"
+}
+```
+
+用户举报：
+
+```http
+POST /reports/user
+token: <accessToken>
+Content-Type: application/json
+```
+
+请求字段：
+
+| 字段 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `userId` | number | 是 | 正整数；目标用户必须存在，且不能是当前登录用户自己 |
+| `reasonType` | string | 是 | 非空，最长 32；必须来自 14.2 返回的启用理由；后端去除首尾空白并转为大写 |
+| `description` | string | 否 | 最长 1000；空白按 `null` 保存 |
+
+```json
+{
+  "userId": 10002,
+  "reasonType": "OTHER",
+  "description": "该用户多次发布骚扰内容"
+}
+```
+
+两个接口权限均为登录用户，路径决定 `targetType`，请求体不接受 `targetType` 或通用 `targetId`。
+
+提交规则：
+
+- 媒体目标必须存在且当前可见；用户目标必须存在且未删除。目标不可举报时统一返回 `18000`。
+- 用户不能举报自己。
+- 同一用户在最近一小时内最多提交 10 条举报，统计包含该用户提交的所有状态。
+- 同一用户不能对同一类型、同一目标同时存在多条进行中举报；`PENDING` 和 `PROCESSING` 都视为进行中。
+- 已有举报进入 `CONFIRMED`、`DISMISSED` 或 `CLOSED` 后，可以再次举报同一目标。
+- 新举报固定创建为 `PENDING`，乐观锁版本固定为 `0`。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 新举报 ID |
+| `data.targetType` | string | 否 | `MEDIA` 或 `USER`，由调用路径决定 |
+| `data.targetId` | number | 否 | 被举报媒体或用户 ID |
+| `data.reasonType` | string | 否 | 规范化后的理由编码 |
+| `data.reasonName` | string | 否 | 理由展示名称 |
+| `data.description` | string | 是 | 规范化后的补充说明 |
+| `data.status` | string | 否 | 固定为 `PENDING` |
+| `data.createdAt` | string | 否 | 创建时间，ISO LocalDateTime |
+| `data.version` | number | 否 | 固定为 `0` |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "举报提交成功",
+  "data": {
+    "id": 1201,
+    "targetType": "MEDIA",
+    "targetId": 501,
+    "reasonType": "COPYRIGHT",
+    "reasonName": "侵犯版权",
+    "description": "该图片疑似未经原作者授权",
+    "status": "PENDING",
+    "createdAt": "2026-08-30T10:00:00",
+    "version": 0
+  },
+  "timestamp": 1788055200000
+}
+```
+
+主要错误：通用字段校验错误 `400`、`18000` 目标不存在或不可举报、`18001` 理由不存在或已停用、`18002` 重复进行中举报、`18003` 超过每小时提交限制、`18011` 举报自己。
+
+### 14.4 管理端举报列表
 
 ```http
 GET /admin/reports?status=PENDING&targetType=MEDIA&reasonType=COPYRIGHT&page=1&size=20
 token: <管理员 accessToken>
 ```
 
-支持 `status`、`targetType`、`reasonType`、`reporterId`、`createdFrom`、`createdTo`、`page` 和 `size`。`status` 默认 `PENDING`，单页最多返回 100 条。摘要包含举报人、目标媒体标题和缩略图、举报理由、当前状态、处理人、处理时间和版本。
+权限：管理员。结果按举报创建时间、举报 ID 降序排列。
 
-### 14.4 管理端举报详情
+Query 参数：
+
+| 参数 | 类型 | 必填 | 默认值 | 约束/说明 |
+|---|---:|---:|---:|---|
+| `status` | `ReportStatus` | 否 | `PENDING` | 精确过滤状态，取值见 14.1；当前不能通过空值查询全部状态 |
+| `targetType` | `ReportTargetType` | 否 | - | `MEDIA` 或 `USER` |
+| `reasonType` | string | 否 | - | 最长 32；去除首尾空白并转为大写后精确匹配；空白表示不筛选 |
+| `reporterId` | number | 否 | - | 正整数；精确过滤举报人 |
+| `createdFrom` | ISO LocalDateTime | 否 | - | 创建时间下界，包含边界 |
+| `createdTo` | ISO LocalDateTime | 否 | - | 创建时间上界，包含边界；不能早于 `createdFrom` |
+| `page` | number | 否 | `1` | 正整数 |
+| `size` | number | 否 | `20` | 正整数；大于 100 时按 100 返回 |
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.total` | number | 否 | 符合条件的举报总数 |
+| `data.page` | number | 否 | 当前页码 |
+| `data.size` | number | 否 | 后端规范化后的每页数量 |
+| `data.items` | array&lt;object&gt; | 否 | 当前页举报摘要；无数据时为 `[]` |
+| `data.items[].id` | number | 否 | 举报 ID |
+| `data.items[].reporterId` | number | 否 | 举报人 ID |
+| `data.items[].reporterName` | string | 是 | 优先使用昵称，其次姓名、CAS ID |
+| `data.items[].targetType` | string | 否 | `MEDIA` 或 `USER` |
+| `data.items[].targetId` | number | 否 | 被举报目标 ID |
+| `data.items[].targetTitle` | string | 是 | 媒体标题或用户显示名；目标已删除时为空 |
+| `data.items[].targetThumbnailUrl` | string | 是 | 媒体缩略图/原图或用户头像 URL；目标已删除或无文件 Key 时为空 |
+| `data.items[].reasonType` | string | 否 | 举报理由编码 |
+| `data.items[].reasonName` | string | 是 | 举报理由名称 |
+| `data.items[].description` | string | 是 | 举报补充说明 |
+| `data.items[].status` | string | 否 | 举报状态，取值见 14.1 |
+| `data.items[].processedBy` | number | 是 | 最终处理管理员 ID；进行中时为空 |
+| `data.items[].processorName` | string | 是 | 最终处理管理员显示名 |
+| `data.items[].processedAt` | string | 是 | 最终处理时间 |
+| `data.items[].createdAt` | string | 否 | 举报创建时间 |
+| `data.items[].version` | number | 否 | 当前乐观锁版本；处理时作为 `expectedVersion` 提交 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "total": 1,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": 1201,
+        "reporterId": 10001,
+        "reporterName": "校园摄影爱好者",
+        "targetType": "MEDIA",
+        "targetId": 501,
+        "targetTitle": "中心校区秋景",
+        "targetThumbnailUrl": "https://r2.example.com/media/501-thumb.jpg?X-Amz-Signature=...",
+        "reasonType": "COPYRIGHT",
+        "reasonName": "侵犯版权",
+        "description": "该图片疑似未经原作者授权",
+        "status": "PENDING",
+        "processedBy": null,
+        "processorName": null,
+        "processedAt": null,
+        "createdAt": "2026-08-30T10:00:00",
+        "version": 0
+      }
+    ]
+  },
+  "timestamp": 1788055260000
+}
+```
+
+主要错误：通用枚举、时间格式或字段校验错误 `400`；`createdFrom` 晚于 `createdTo` 时返回通用 `400`；非管理员返回 `10103`。
+
+### 14.5 管理端举报详情
 
 ```http
 GET /admin/reports/{reportId}
 token: <管理员 accessToken>
 ```
 
-返回举报人资料及历史举报统计、目标媒体当前信息、理由、状态、处理信息、同目标其他进行中举报数量、当前版本，以及最近最多 100 条追加式操作日志。第一版不保存举报时对象快照；目标被删除后 `target.exists` 为 `false`。
+权限：管理员。`reportId` 必须为正整数。
 
-### 14.5 提交举报处理决定
+第一版保存举报目标的类型和 ID，但不保存举报提交时的对象快照。因此详情中的标题、描述、状态、关联用户和缩略图/头像都是查询时的当前值；目标已被删除时 `target.exists` 为 `false`，其他目标详情字段可能为空。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.id` | number | 否 | 举报 ID |
+| `data.reporter` | object | 否 | 举报人信息及历史统计 |
+| `data.reporter.id` | number | 否 | 举报人 ID |
+| `data.reporter.casId` | string | 是 | 举报人 CAS ID |
+| `data.reporter.name` | string | 是 | 举报人姓名 |
+| `data.reporter.nickname` | string | 是 | 举报人昵称 |
+| `data.reporter.avatarUrl` | string | 是 | 由头像 Key 生成的预签名 URL |
+| `data.reporter.reportCount` | number | 否 | 该用户累计提交的举报数，包含所有状态 |
+| `data.reporter.confirmedCount` | number | 否 | 该用户被确认成立的举报数 |
+| `data.target` | object | 否 | 被举报目标的当前信息 |
+| `data.target.type` | string | 否 | 当前为 `MEDIA` |
+| `data.target.id` | number | 否 | 目标媒体 ID |
+| `data.target.exists` | boolean | 否 | 目标媒体当前是否仍存在 |
+| `data.target.title` | string | 是 | 媒体当前标题 |
+| `data.target.description` | string | 是 | 媒体当前描述 |
+| `data.target.uploaderId` | number | 是 | 媒体上传者 ID |
+| `data.target.status` | number | 是 | 媒体当前状态：`0` 隐藏、`1` 可见 |
+| `data.target.thumbnailUrl` | string | 是 | 缩略图优先、原图兜底的预签名 URL |
+| `data.reasonType` | string | 否 | 举报理由编码 |
+| `data.reasonName` | string | 是 | 举报理由名称 |
+| `data.reasonDescription` | string | 是 | 举报理由字典说明 |
+| `data.description` | string | 是 | 举报人填写的补充说明 |
+| `data.status` | string | 否 | 举报状态，取值见 14.1 |
+| `data.decisionReason` | string | 是 | 管理员最终处理理由；进行中时为空 |
+| `data.processedBy` | number | 是 | 最终处理管理员 ID |
+| `data.processorName` | string | 是 | 最终处理管理员显示名 |
+| `data.processedAt` | string | 是 | 最终处理时间 |
+| `data.relatedActiveReportCount` | number | 否 | 同一目标其他 `PENDING`、`PROCESSING` 举报数量，不包含当前举报 |
+| `data.createdAt` | string | 否 | 举报创建时间 |
+| `data.updatedAt` | string | 否 | 举报更新时间 |
+| `data.version` | number | 否 | 当前乐观锁版本 |
+| `data.operationLogs` | array&lt;object&gt; | 否 | 最近最多 100 条操作日志，按时间、日志 ID 降序排列 |
+| `data.operationLogs[].id` | number | 否 | 日志 ID |
+| `data.operationLogs[].operationType` | string | 否 | 当前处理日志为 `DECISION` |
+| `data.operationLogs[].decision` | string | 是 | `CONFIRM`、`DISMISS` 或 `CLOSE` |
+| `data.operationLogs[].beforeStatus` | string | 否 | 操作前举报状态 |
+| `data.operationLogs[].afterStatus` | string | 否 | 操作后举报状态 |
+| `data.operationLogs[].reason` | string | 是 | 本次处理理由 |
+| `data.operationLogs[].actions` | array&lt;object&gt; | 是 | 请求中的处置动作快照 |
+| `data.operationLogs[].results` | array&lt;object&gt; | 是 | 处置动作执行结果快照 |
+| `data.operationLogs[].operatorId` | number | 否 | 操作管理员 ID |
+| `data.operationLogs[].operatorName` | string | 是 | 操作管理员显示名 |
+| `data.operationLogs[].reportVersion` | number | 否 | 操作前使用的举报版本 |
+| `data.operationLogs[].createdAt` | string | 否 | 操作时间 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "id": 1201,
+    "reporter": {
+      "id": 10001,
+      "casId": "202600000001",
+      "name": "示例用户",
+      "nickname": "校园摄影爱好者",
+      "avatarUrl": "https://r2.example.com/avatars/10001.jpg?X-Amz-Signature=...",
+      "reportCount": 3,
+      "confirmedCount": 1
+    },
+    "target": {
+      "type": "MEDIA",
+      "id": 501,
+      "exists": true,
+      "title": "中心校区秋景",
+      "description": "中心校区秋季景色",
+      "uploaderId": 10002,
+      "status": 0,
+      "thumbnailUrl": "https://r2.example.com/media/501-thumb.jpg?X-Amz-Signature=..."
+    },
+    "reasonType": "COPYRIGHT",
+    "reasonName": "侵犯版权",
+    "reasonDescription": "未经授权使用他人享有著作权的内容",
+    "description": "该图片疑似未经原作者授权",
+    "status": "CONFIRMED",
+    "decisionReason": "确认存在未经授权的版权内容",
+    "processedBy": 20001,
+    "processorName": "内容管理员",
+    "processedAt": "2026-08-30T10:10:00",
+    "relatedActiveReportCount": 0,
+    "createdAt": "2026-08-30T10:00:00",
+    "updatedAt": "2026-08-30T10:10:00",
+    "version": 1,
+    "operationLogs": [
+      {
+        "id": 3001,
+        "operationType": "DECISION",
+        "decision": "CONFIRM",
+        "beforeStatus": "PENDING",
+        "afterStatus": "CONFIRMED",
+        "reason": "确认存在未经授权的版权内容",
+        "actions": [
+          {
+            "type": "HIDE_MEDIA",
+            "frozenUntil": null,
+            "reason": null
+          }
+        ],
+        "results": [
+          {
+            "type": "HIDE_MEDIA",
+            "targetId": 501,
+            "message": "媒体已隐藏"
+          }
+        ],
+        "operatorId": 20001,
+        "operatorName": "内容管理员",
+        "reportVersion": 0,
+        "createdAt": "2026-08-30T10:10:00"
+      }
+    ]
+  },
+  "timestamp": 1788055800000
+}
+```
+
+主要错误：路径参数校验错误 `400`、`18004` 举报不存在、非管理员 `10103`。
+
+### 14.6 提交举报处理决定
 
 ```http
 POST /admin/reports/{reportId}/decision
 token: <管理员 accessToken>
 Content-Type: application/json
+```
 
+权限：管理员。`reportId` 必须为正整数。
+
+请求字段：
+
+| 字段路径 | JSON 类型 | 必填 | 约束/说明 |
+|---|---|---:|---|
+| `decision` | string | 是 | `CONFIRM`、`DISMISS`、`CLOSE`，取值及终态见 14.1 |
+| `reason` | string | 条件必填 | 最长 1000；空白按 `null` 处理；`CONFIRM` 时必须非空 |
+| `actions` | array&lt;object&gt; | 条件必填 | 最多 10 个；未传或 `null` 按 `[]`；`CONFIRM` 时至少一个 |
+| `actions[].type` | string | 是 | `HIDE_MEDIA`、`RESTORE_MEDIA`、`FREEZE_USER`、`NO_ACTION` |
+| `actions[].frozenUntil` | string | 条件必填 | ISO LocalDateTime；仅 `FREEZE_USER` 使用，且必须晚于服务器当前时间 |
+| `actions[].reason` | string | 条件必填 | 最长 255；`FREEZE_USER` 时去除首尾空白后必须非空 |
+| `expectedVersion` | number | 是 | 非负整数；必须等于列表或详情中的最新 `version` |
+
+确认举报成立并隐藏媒体：
+
+```json
 {
   "decision": "CONFIRM",
   "reason": "确认存在未经授权的版权内容",
   "actions": [
-    {"type": "HIDE_MEDIA", "frozenUntil": null, "reason": null}
+    {
+      "type": "HIDE_MEDIA",
+      "frozenUntil": null,
+      "reason": null
+    }
   ],
   "expectedVersion": 0
 }
 ```
 
-`decision` 支持 `CONFIRM`、`DISMISS` 和 `CLOSE`。确认成立时必须填写理由并至少提供一个动作；动作支持 `HIDE_MEDIA`、`RESTORE_MEDIA`、`FREEZE_USER` 和 `NO_ACTION`。`FREEZE_USER` 需要提供未来的 `frozenUntil` 和非空 `reason`，目标用户为媒体上传者。
+确认举报成立但不修改资源时，使用单独的 `NO_ACTION`。举报不成立或直接关闭时可以不传 `actions`，也可以只传 `NO_ACTION`：
 
-处理使用 `expectedVersion` 执行 XML 条件更新；举报状态变化、资源处置和操作日志位于同一数据库事务。成功响应包含终态、处理人和时间、新版本及逐项动作结果。
+```json
+{
+  "decision": "DISMISS",
+  "reason": "现有信息无法证明侵权",
+  "actions": [],
+  "expectedVersion": 0
+}
+```
 
-媒体存在 `PENDING` 或 `PROCESSING` 举报时，管理员永久删除接口返回冲突错误，不会删除媒体及关联数据。
+处理规则：
+
+- 只允许处理 `PENDING` 或 `PROCESSING` 举报。
+- 后端先比较 `expectedVersion`，更新时再次同时校验进行中状态和版本；成功后版本加一。
+- 举报终态更新、媒体或用户处置、操作日志写入位于同一数据库事务，任一步失败都会整体回滚。
+- `HIDE_MEDIA`、`RESTORE_MEDIA` 对已经处于目标状态的媒体按成功处理，并在动作结果中说明当前状态。
+- `USER` 举报只允许 `FREEZE_USER` 或 `NO_ACTION`，不允许隐藏或恢复媒体。
+- `FREEZE_USER` 对用户举报操作目标用户，对媒体举报操作媒体上传者；媒体没有上传者时拒绝处理。
+- 每次成功处理都会追加一条 `DECISION` 操作日志，不覆盖历史日志。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.reportId` | number | 否 | 举报 ID |
+| `data.status` | string | 否 | 处理后的终态 |
+| `data.reason` | string | 是 | 规范化后的处理理由 |
+| `data.processedBy` | number | 否 | 当前管理员 ID |
+| `data.processedAt` | string | 否 | 处理时间 |
+| `data.version` | number | 否 | 处理后的版本，即 `expectedVersion + 1` |
+| `data.actions` | array&lt;object&gt; | 否 | 动作执行结果；无动作时为 `[]` |
+| `data.actions[].type` | string | 否 | 已执行的动作类型 |
+| `data.actions[].targetId` | number | 否 | 实际作用对象 ID；冻结用户时为上传者 ID，其他动作通常为媒体 ID |
+| `data.actions[].message` | string | 否 | 动作结果说明 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "举报处理成功",
+  "data": {
+    "reportId": 1201,
+    "status": "CONFIRMED",
+    "reason": "确认存在未经授权的版权内容",
+    "processedBy": 20001,
+    "processedAt": "2026-08-30T10:10:00",
+    "version": 1,
+    "actions": [
+      {
+        "type": "HIDE_MEDIA",
+        "targetId": 501,
+        "message": "媒体已隐藏"
+      }
+    ]
+  },
+  "timestamp": 1788055800000
+}
+```
+
+主要错误：通用字段或枚举校验错误 `400`、`18004` 举报不存在、`18005` 版本冲突、`18006` 举报已是终态、`18007` 确认成立但缺少处理理由、`18008` 确认成立但缺少动作、`18009` 动作组合或参数不合法；执行资源处置时目标已不存在返回 `18000`。
+
+媒体存在 `PENDING` 或 `PROCESSING` 举报时，管理员永久删除媒体接口返回 `18010 / HTTP 409`，不会删除媒体及关联数据。前端收到 `18005` 后应重新获取举报详情和最新版本，不要直接重复提交原请求。
 
 ## 15. 错误码对照
 
@@ -4557,6 +4995,7 @@ Content-Type: application/json
 | 400 | `18008` | 确认举报成立时必须指定处置动作 |
 | 400 | `18009` | 举报处置动作不合法 |
 | 409 | `18010` | 媒体存在尚未处理的举报，暂时无法删除 |
+| 400 | `18011` | 不能举报自己 |
 
 ## 16. 前端接入检查清单
 

@@ -126,6 +126,8 @@ class MapperXmlParsingTest {
                 ), "ORDER BY r.created_at DESC");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaMapper.selectByIdForUpdate",
                 Map.of("mediaId", 1L), "FOR UPDATE");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.UserMapper.selectByIdForUpdate",
+                Map.of("userId", 1L), "FOR UPDATE");
 
         Submission submission = Submission.builder()
                 .id(1L)

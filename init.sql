@@ -613,7 +613,7 @@ create table report
     id              bigint unsigned auto_increment comment '举报ID'
         primary key,
     reporter_id     bigint unsigned                           not null comment '举报用户ID',
-    target_type     varchar(32)                               not null comment '目标类型，V1支持MEDIA',
+    target_type     varchar(32)                               not null comment '目标类型，V1支持MEDIA、USER',
     target_id       bigint unsigned                           not null comment '目标对象ID',
     reason_code     varchar(32)                               not null comment '举报理由编码',
     description     varchar(1000)                             null comment '举报补充说明',

@@ -1,0 +1,18 @@
+package cn.sduonline.business.data.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+
+public record CreateUserReportRequest(
+        @NotNull(message = "用户ID不能为空")
+        @Positive(message = "用户ID必须为正数")
+        Long userId,
+        @NotBlank(message = "举报理由不能为空")
+        @Size(max = 32, message = "举报理由编码不能超过32个字符")
+        String reasonType,
+        @Size(max = 1000, message = "举报补充说明不能超过1000个字符")
+        String description
+) {
+}

@@ -1,6 +1,7 @@
 package cn.sduonline.business.controller;
 
-import cn.sduonline.business.data.dto.CreateReportRequest;
+import cn.sduonline.business.data.dto.CreateMediaReportRequest;
+import cn.sduonline.business.data.dto.CreateUserReportRequest;
 import cn.sduonline.business.data.vo.ReportReasonTypeVO;
 import cn.sduonline.business.data.vo.ReportVO;
 import cn.sduonline.business.security.anno.PublicApi;
@@ -20,21 +21,38 @@ import java.util.List;
 public class ReportController {
     private final ReportService reportService;
 
-    /** 查询当前可用的举报理由，供客户端构建举报理由下拉列表。 */
+    /**
+     * 举报理由下拉列表
+     * 查询当前可用的举报理由，供客户端构建举报理由下拉列表。
+     */
     @PublicApi
     @GetMapping("/reasons")
     public Result<List<ReportReasonTypeVO>> reasons() {
         return Result.success(reportService.reasons());
     }
 
-    /** 当前登录用户提交内容举报。 */
-    @PostMapping
-    public Result<ReportVO> create(
-            @Valid @RequestBody CreateReportRequest request,
+    @PostMapping("/media")
+    public Result<ReportVO> createMediaReport(
+            @Valid @RequestBody CreateMediaReportRequest request,
             HttpServletRequest servletRequest
     ) {
         return Result.success(
-                reportService.create(CurrentUser.id(), request, servletRequest.getRemoteAddr()),
+                reportService.createMediaReport(
+                        CurrentUser.id(), request, servletRequest.getRemoteAddr()
+                ),
+                "举报提交成功"
+        );
+    }
+
+    @PostMapping("/user")
+    public Result<ReportVO> createUserReport(
+            @Valid @RequestBody CreateUserReportRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return Result.success(
+                reportService.createUserReport(
+                        CurrentUser.id(), request, servletRequest.getRemoteAddr()
+                ),
                 "举报提交成功"
         );
     }

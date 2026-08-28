@@ -5,11 +5,14 @@ import cn.sduonline.business.data.dto.AdminReportDecisionRequest;
 import cn.sduonline.business.data.enums.ReportActionType;
 import cn.sduonline.business.data.enums.ReportDecision;
 import cn.sduonline.business.data.enums.ReportStatus;
+import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.Report;
 import cn.sduonline.business.data.po.ReportOperationLog;
+import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.business.mapper.ReportMapper;
 import cn.sduonline.business.mapper.ReportOperationLogMapper;
+import cn.sduonline.business.mapper.UserMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
@@ -22,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,6 +41,8 @@ class AdminReportServiceTest {
     @Mock
     private MediaMapper mediaMapper;
     @Mock
+    private UserMapper userMapper;
+    @Mock
     private AdminMediaService adminMediaService;
     @Mock
     private AdminUserService adminUserService;
@@ -48,7 +54,7 @@ class AdminReportServiceTest {
     @BeforeEach
     void setUp() {
         service = new AdminReportService(
-                reportMapper, operationLogMapper, mediaMapper,
+                reportMapper, operationLogMapper, mediaMapper, userMapper,
                 adminMediaService, adminUserService, fileStorage, new ObjectMapper()
         );
     }
@@ -123,6 +129,44 @@ class AdminReportServiceTest {
         verify(reportMapper, never()).updateDecisionWithVersion(
                 anyLong(), anyInt(), anyInt(), any(), anyLong(), any()
         );
+    }
+
+    @Test
+    void confirmUserReportShouldFreezeTargetUser() {
+        Report report = pendingReport(10L, 2);
+        report.setTargetType("USER");
+        User targetUser = new User();
+        targetUser.setId(20L);
+        LocalDateTime frozenUntil = LocalDateTime.now().plusDays(1);
+
+        when(reportMapper.selectById(10L)).thenReturn(report);
+        when(userMapper.selectByIdForUpdate(20L)).thenReturn(targetUser);
+        when(reportMapper.updateDecisionWithVersion(
+                eq(10L), eq(2), eq(ReportStatus.CONFIRMED.getValue()),
+                eq("确认违规"), eq(7L), any()
+        )).thenReturn(1);
+
+        var result = service.decide(
+                7L,
+                10L,
+                new AdminReportDecisionRequest(
+                        ReportDecision.CONFIRM,
+                        "确认违规",
+                        List.of(new AdminReportDecisionActionRequest(
+                                ReportActionType.FREEZE_USER, frozenUntil, "发布违规内容"
+                        )),
+                        2
+                )
+        );
+
+        assertThat(result.actions()).singleElement().satisfies(action -> {
+            assertThat(action.type()).isEqualTo(ReportActionType.FREEZE_USER);
+            assertThat(action.targetId()).isEqualTo(20L);
+        });
+        verify(adminUserService).updateStatus(
+                7L, 20L, UserStatus.FROZEN, frozenUntil, "发布违规内容"
+        );
+        verifyNoInteractions(mediaMapper, adminMediaService);
     }
 
     private Report pendingReport(Long id, int version) {

@@ -1,17 +1,14 @@
 package cn.sduonline.business.data.dto;
 
-import cn.sduonline.business.data.enums.ReportTargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public record CreateReportRequest(
-        @NotNull(message = "举报目标类型不能为空")
-        ReportTargetType targetType,
-        @NotNull(message = "举报目标ID不能为空")
-        @Positive(message = "举报目标ID必须为正数")
-        Long targetId,
+public record CreateMediaReportRequest(
+        @NotNull(message = "媒体ID不能为空")
+        @Positive(message = "媒体ID必须为正数")
+        Long mediaId,
         @NotBlank(message = "举报理由不能为空")
         @Size(max = 32, message = "举报理由编码不能超过32个字符")
         String reasonType,

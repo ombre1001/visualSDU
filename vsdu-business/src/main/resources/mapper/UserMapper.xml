@@ -5,6 +5,14 @@
 
 <mapper namespace="cn.sduonline.business.mapper.UserMapper">
 
+    <select id="selectByIdForUpdate" resultType="cn.sduonline.business.data.po.User">
+        SELECT *
+        FROM `user`
+        WHERE id = #{userId}
+          AND deleted = 0
+        FOR UPDATE
+    </select>
+
     <sql id="adminConditions">
         WHERE deleted = 0
         <if test="role != null">
