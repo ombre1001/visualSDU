@@ -125,6 +125,8 @@ public class UserService {
         return toProfile(user);
     }
 
+    private static final String DEFAULT_AVATAR_KEY = "avatars/default.png";
+
     @Transactional
     public UserProfileVO deleteAvatar(Long userId) {
         User user = requireActiveUser(userId);
@@ -135,7 +137,7 @@ public class UserService {
         int updated = userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, userId)
                 .eq(User::getDeleted, false)
-                .set(User::getAvatarKey, null)
+                .set(User::getAvatarKey, DEFAULT_AVATAR_KEY)
                 .set(User::getUpdatedAt, now));
         if (updated != 1) throw new BizException(BizCode.AUTH_USER_NOT_FOUND);
 
