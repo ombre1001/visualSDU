@@ -11,7 +11,7 @@
             c.name,
             c.code,
             c.province,
-            c.cover_url,
+            c.cover_key,
             c.description,
             (
                 SELECT COUNT(*)

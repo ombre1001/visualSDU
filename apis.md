@@ -97,12 +97,12 @@ token: <accessToken>
 - `LocalDateTime` 使用不带时区的 ISO 8601 字符串，例如 `2026-08-15T14:30:00`。
 - ID、计数和经纬度在 JSON 中均为数字。
 - 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建投稿的标签 ID 使用 `tagIds` 同名多值字段，修改投稿的标签名称仍使用 `tags` 同名多值字段。
-- 媒体图片、缩略图、投稿预览、用户头像和下载地址由 R2 预签名生成，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
-- 城市、校区、地点的 `coverKey` 是数据库直接返回值，不走上述预签名逻辑。
+- 媒体图片、缩略图、投稿预览、用户头像、城市与地点封面和下载地址由 R2 ObjectKey 生成预签名 URL，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
+- 城市和地点在数据库中只保存 `coverKey`；公开接口返回由 `FileStorage#getUrl` 生成的 `coverUrl`。校区当前仍直接保存并返回 URL。
 
 ## 2. 接口总览
 
-至今开发完成的共有 81 个实际映射的接口。
+至今开发完成的共有 87 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
@@ -119,6 +119,7 @@ token: <accessToken>
 | 个人中心 | DELETE | `/users/me/history` | 登录 | - | `null` |
 | 个人中心 | DELETE | `/users/me/history/{mediaId}` | 登录 | Path | `null` |
 | 城市 | GET | `/cities` | 公开 | - | 城市对象数组 |
+| 地点分类 | GET | `/location-categories` | 公开 | - | 地点分类选项数组 |
 | 城市 | GET | `/cities/{cityId}/campuses` | 公开 | Path | 校区摘要对象数组 |
 | 校区 | GET | `/campuses/{campusId}` | 公开 | Path | 校区详情对象 |
 | 校区 | GET | `/campuses/{campusId}/locations` | 公开 | Query | 地点摘要对象数组 |
@@ -133,6 +134,8 @@ token: <accessToken>
 | 媒体 | DELETE | `/media/{mediaId}/favorites` | 登录 | Path | 媒体互动状态对象 |
 | 媒体 | POST | `/media/{mediaId}/downloads` | 登录 | Path | 下载信息对象 |
 | 媒体 | GET | `/media/{mediaId}/related` | 公开 | Query | 媒体摘要对象数组 |
+| 举报 | GET | `/reports/reasons` | 公开 | - | 举报理由对象数组 |
+| 举报 | POST | `/reports` | 登录 | JSON | 举报提交结果对象 |
 | 搜索 | GET | `/search/suggestions` | 公开 | Query | 搜索建议对象数组 |
 | 搜索 | GET | `/search/media` | 公开 | Query | 媒体摘要分页对象 |
 | 发现 | GET | `/discovery/home` | 公开 | Query | 发现首页聚合对象 |
@@ -171,6 +174,9 @@ token: <accessToken>
 | 管理媒体 | POST | `/admin/media/{mediaId}/hide` | 管理员 | Path | 管理媒体对象 |
 | 管理媒体 | POST | `/admin/media/{mediaId}/restore` | 管理员 | Path | 管理媒体对象 |
 | 管理媒体 | DELETE | `/admin/media/{mediaId}` | 管理员 | Path | `null` |
+| 管理举报 | GET | `/admin/reports` | 管理员 | Query | 管理举报摘要分页对象 |
+| 管理举报 | GET | `/admin/reports/{reportId}` | 管理员 | Path | 管理举报详情对象 |
+| 管理举报 | POST | `/admin/reports/{reportId}/decision` | 管理员 | JSON | 举报处理结果对象 |
 | 管理标签 | GET | `/admin/tags` | 管理员 | Query | 管理标签对象数组 |
 | 管理标签 | POST | `/admin/tags` | 管理员 | JSON | 管理标签对象 |
 | 管理标签 | PATCH | `/admin/tags/{tagId}` | 管理员 | JSON | 管理标签对象 |
@@ -361,7 +367,35 @@ JSON 响应示例：
 
 ## 4. 城市、校区、地点与地图
 
-### 4.1 城市列表
+### 4.1 地点分类列表
+
+```http
+GET /location-categories
+```
+
+权限：公开。无参数，不分页。只返回启用分类，按后台 `sortOrder`、`id` 升序排列；无数据时返回 `[]`。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | array&lt;object&gt; | 否 | 地点分类选项数组 |
+| `data[].code` | string | 否 | 提交给地点创建、修改接口的稳定分类编码 |
+| `data[].name` | string | 否 | 分类展示名称 |
+
+```json
+{
+  "code": 0,
+  "msg": "查询地点分类列表成功",
+  "data": [
+    {"code": "BUILDING", "name": "教学及办公建筑"},
+    {"code": "LIBRARY", "name": "图书馆"}
+  ],
+  "timestamp": 1786773600000
+}
+```
+
+### 4.2 城市列表
 
 ```http
 GET /cities
@@ -378,7 +412,7 @@ GET /cities
 | `data[].name` | string | 否 | 城市名称 |
 | `data[].code` | string | 否 | 城市代码 |
 | `data[].province` | string | 否 | 所属省份 |
-| `data[].coverUrl` | string | 是 | 城市封面地址 |
+| `data[].coverUrl` | string | 是 | 由城市 `coverKey` 生成的 10 分钟预签名封面 URL |
 | `data[].description` | string | 是 | 城市描述 |
 | `data[].campusCount` | number | 否 | 启用校区数量 |
 
@@ -394,7 +428,7 @@ JSON 响应示例：
       "name": "济南",
       "code": "JINAN",
       "province": "山东省",
-      "coverUrl": "https://example.com/cities/jinan.jpg",
+      "coverUrl": "https://r2.example.com/cities/jinan.jpg?X-Amz-Signature=...",
       "description": "山东大学主要校区所在城市",
       "campusCount": 4
     }
@@ -403,7 +437,7 @@ JSON 响应示例：
 }
 ```
 
-### 4.2 城市下的校区
+### 4.3 城市下的校区
 
 ```http
 GET /cities/{cityId}/campuses
@@ -455,7 +489,7 @@ JSON 响应示例：
 
 主要错误：`12000` 城市不存在或已停用。
 
-### 4.3 校区详情
+### 4.4 校区详情
 
 ```http
 GET /campuses/{campusId}
@@ -507,7 +541,7 @@ JSON 响应示例：
 - `12100`：校区不存在或已停用。
 - `12000`：校区所属城市不存在或已停用。
 
-### 4.4 校区下的地点
+### 4.5 校区下的地点
 
 ```http
 GET /campuses/{campusId}/locations?categoryCode=<code>
@@ -530,11 +564,11 @@ GET /campuses/{campusId}/locations?categoryCode=<code>
 | `data[].id` | number | 否 | 地点 ID |
 | `data[].campusId` | number | 否 | 所属校区 ID |
 | `data[].name` | string | 否 | 地点名称 |
-| `data[].categoryCode` | string | 是 | 地点分类代码 |
+| `data[].categoryCode` | string | 否 | 地点分类代码 |
 | `data[].address` | string | 是 | 地点地址 |
 | `data[].longitude` | number | 是 | 经度 |
 | `data[].latitude` | number | 是 | 纬度 |
-| `data[].coverUrl` | string | 是 | 地点封面地址 |
+| `data[].coverUrl` | string | 是 | 由地点 `coverKey` 生成的 10 分钟预签名封面 URL |
 
 JSON 响应示例：
 
@@ -551,7 +585,7 @@ JSON 响应示例：
       "address": "中心校区内",
       "longitude": 117.0618,
       "latitude": 36.6745,
-      "coverUrl": "https://example.com/locations/zhixin.jpg"
+      "coverUrl": "https://r2.example.com/locations/zhixin.jpg?X-Amz-Signature=..."
     }
   ],
   "timestamp": 1786773600000
@@ -560,7 +594,7 @@ JSON 响应示例：
 
 主要错误：`12100` 校区不存在或已停用。
 
-### 4.5 地点详情
+### 4.6 地点详情
 
 ```http
 GET /locations/{locationId}
@@ -578,11 +612,11 @@ GET /locations/{locationId}
 | `data.cityId` | number | 否 | 所属城市 ID |
 | `data.cityName` | string | 否 | 所属城市名称 |
 | `data.name` | string | 否 | 地点名称 |
-| `data.categoryCode` | string | 是 | 地点分类代码 |
+| `data.categoryCode` | string | 否 | 地点分类代码 |
 | `data.address` | string | 是 | 地点地址 |
 | `data.longitude` | number | 是 | 经度 |
 | `data.latitude` | number | 是 | 纬度 |
-| `data.coverUrl` | string | 是 | 地点封面地址 |
+| `data.coverUrl` | string | 是 | 由地点 `coverKey` 生成的 10 分钟预签名封面 URL |
 | `data.description` | string | 是 | 地点描述 |
 
 JSON 响应示例：
@@ -602,7 +636,7 @@ JSON 响应示例：
     "address": "中心校区内",
     "longitude": 117.0618,
     "latitude": 36.6745,
-    "coverUrl": "https://example.com/locations/zhixin.jpg",
+    "coverUrl": "https://r2.example.com/locations/zhixin.jpg?X-Amz-Signature=...",
     "description": "教学与科研建筑"
   },
   "timestamp": 1786773600000
@@ -615,7 +649,7 @@ JSON 响应示例：
 - `12100`：所属校区不存在或已停用。
 - `12000`：所属城市不存在或已停用。
 
-### 4.6 地点媒体列表
+### 4.7 地点媒体列表
 
 ```http
 GET /locations/{locationId}/media?page=1&size=20
@@ -671,7 +705,7 @@ JSON 响应示例：
 
 主要错误：`12200` 地点不存在或停用、`12100` 校区不存在或停用、`12000` 城市不存在或停用，以及通用路径/分页参数错误 `400`。
 
-### 4.7 地图点位
+### 4.8 地图点位
 
 ```http
 GET /map/markers?cityId=1
@@ -697,7 +731,7 @@ GET /map/markers?campusId=1
 | `data[].name` | string | 否 | 点位名称 |
 | `data[].longitude` | number | 是 | 经度 |
 | `data[].latitude` | number | 是 | 纬度 |
-| `data[].coverUrl` | string | 是 | 点位封面地址 |
+| `data[].coverUrl` | string | 是 | 校区点位为数据库 URL；地点点位为根据 `coverKey` 生成的 10 分钟预签名 URL |
 
 JSON 响应示例（按城市查询校区点位）：
 
@@ -2300,11 +2334,11 @@ Content-Type: application/json
 |---|---|---:|---|
 | `campusId` | number | 是 | 正数，且校区必须启用 |
 | `name` | string | 是 | 去除首尾空白后非空，最长 100 |
-| `categoryCode` | string | 否 | 最长 32；空白保存为 `null` |
+| `categoryCode` | string | 是 | 从 `/location-categories` 选择；大写字母开头，只能包含大写字母、数字和下划线，且必须对应启用分类 |
 | `address` | string | 否 | 最长 255；空白保存为 `null` |
 | `longitude` | number | 是 | `-180～180` |
 | `latitude` | number | 是 | `-90～90` |
-| `coverKey` | string | 否 | 最长 1000；数据库直存 URL |
+| `coverKey` | string | 否 | 最长 512；数据库保存 R2 ObjectKey，不能传 URL 或绝对路径；未传或空白时暂用 `avatars/default.png` |
 | `description` | string | 否 | 最长 2000 |
 | `sortOrder` | number | 否 | 非负，默认 `0` |
 | `status` | number | 否 | `0` 停用、`1` 启用，默认 `1` |
@@ -2317,7 +2351,7 @@ Content-Type: application/json
   "address": "中心校区内",
   "longitude": 117.0618,
   "latitude": 36.6745,
-  "coverUrl": null,
+  "coverKey": "locations/admin/zhixin-building.jpg",
   "description": "教学建筑",
   "sortOrder": 10,
   "status": 1
@@ -2330,7 +2364,8 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id`、`campusId` | number | 否 | 地点、校区 ID |
 | `data.name` | string | 否 | 地点名称 |
-| `data.categoryCode`、`address`、`coverKey`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.categoryCode` | string | 否 | 地点分类代码 |
+| `data.address`、`coverKey`、`description` | string | 是 | 地址、持久化封面 ObjectKey、描述 |
 | `data.longitude`、`latitude` | number | 否 | 经纬度 |
 | `data.sortOrder`、`status` | number | 否 | 排序值、状态 `0/1` |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2347,7 +2382,7 @@ Content-Type: application/json
     "address": "中心校区内",
     "longitude": 117.0618,
     "latitude": 36.6745,
-    "coverUrl": null,
+    "coverKey": "locations/admin/zhixin-building.jpg",
     "description": "教学建筑",
     "sortOrder": 10,
     "status": 1,
@@ -2358,7 +2393,7 @@ Content-Type: application/json
 }
 ```
 
-主要错误：`17112` 目标校区不存在或停用，以及通用字段校验错误 `400`。
+主要错误：`17112` 目标校区不存在或停用、`17113` 地点分类不存在或停用，以及通用字段校验错误 `400`。
 
 ### 8.13 修改地点
 
@@ -2368,7 +2403,7 @@ token: <管理员 accessToken>
 Content-Type: application/json
 ```
 
-路径 ID 必须为正数。请求字段与 8.7 相同但全部可选；至少提供一个非 `null` 字段。字符串字段传空白可清为 `null`，但 `name` 不能清空；未提供的字段保持原值。
+路径 ID 必须为正数。请求字段与创建地点相同但全部可选；至少提供一个非 `null` 字段。`categoryCode` 传入时不能为空且必须对应启用分类；`coverKey`、地址和描述传空白可清为 `null`，名称不能清空；未提供的字段保持原值。地点恢复启用时会重新校验当前校区和分类。
 
 请求示例：
 
@@ -2382,7 +2417,8 @@ Content-Type: application/json
 |---|---|---:|---|
 | `data.id`、`campusId` | number | 否 | 地点、校区 ID |
 | `data.name` | string | 否 | 地点名称 |
-| `data.categoryCode`、`address`、`coverKey`、`description` | string | 是 | 分类、地址、封面、描述 |
+| `data.categoryCode` | string | 否 | 地点分类代码 |
+| `data.address`、`coverKey`、`description` | string | 是 | 地址、持久化封面 ObjectKey、描述 |
 | `data.longitude`、`latitude` | number | 否 | 经纬度 |
 | `data.sortOrder`、`status` | number | 否 | 排序值和更新后状态 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2390,10 +2426,10 @@ Content-Type: application/json
 JSON 响应示例：
 
 ```json
-{"code":0,"msg":"地点修改成功","data":{"id":110,"campusId":1,"name":"新建教学楼","categoryCode":"BUILDING","address":"中心校区内","longitude":117.0618,"latitude":36.6745,"coverUrl":null,"description":"更新后的地点介绍","sortOrder":20,"status":0,"createdAt":"2026-08-22T10:30:00","updatedAt":"2026-08-22T10:35:00"},"timestamp":1787392800000}
+{"code":0,"msg":"地点修改成功","data":{"id":110,"campusId":1,"name":"新建教学楼","categoryCode":"BUILDING","address":"中心校区内","longitude":117.0618,"latitude":36.6745,"coverKey":"locations/admin/zhixin-building.jpg","description":"更新后的地点介绍","sortOrder":20,"status":0,"createdAt":"2026-08-22T10:30:00","updatedAt":"2026-08-22T10:35:00"},"timestamp":1787392800000}
 ```
 
-主要错误：`17110` 地点不存在、`17111` 空更新、`17112` 新校区无效。
+主要错误：`17110` 地点不存在、`17111` 空更新、`17112` 新校区无效、`17113` 地点分类不存在或停用。
 
 ### 8.14 管理员媒体列表
 
@@ -4297,9 +4333,79 @@ Content-Type: application/json
 
 下线成功文案为“公告下线成功”。主要错误：`17000` 公告不存在、`17001` 状态转换不允许。
 
-## 14. 错误码对照
+## 14. 举报与举报管理
 
-### 14.1 通用与认证
+### 14.1 查询举报理由
+
+```http
+GET /reports/reasons
+```
+
+公开接口，按后台字典顺序返回所有已启用理由。每项包含 `code`、`name` 和可空的 `description`；提交举报时使用 `code` 作为 `reasonType`。
+
+### 14.2 提交举报
+
+```http
+POST /reports
+token: <accessToken>
+Content-Type: application/json
+
+{
+  "targetType": "MEDIA",
+  "targetId": 501,
+  "reasonType": "COPYRIGHT",
+  "description": "该图片未经原作者授权"
+}
+```
+
+第一版 `targetType` 只接受 `MEDIA`，暂不支持证据附件。`description` 最长 1000 字符。后端限制同一用户每小时最多提交 10 条举报，并阻止同一用户对同一目标存在多条进行中的举报。
+
+成功时 `data` 包含 `id`、`targetType`、`targetId`、`reasonType`、`reasonName`、`description`、`status`、`createdAt` 和 `version`；初始状态为 `PENDING`，版本为 `0`。
+
+### 14.3 管理端举报列表
+
+```http
+GET /admin/reports?status=PENDING&targetType=MEDIA&reasonType=COPYRIGHT&page=1&size=20
+token: <管理员 accessToken>
+```
+
+支持 `status`、`targetType`、`reasonType`、`reporterId`、`createdFrom`、`createdTo`、`page` 和 `size`。`status` 默认 `PENDING`，单页最多返回 100 条。摘要包含举报人、目标媒体标题和缩略图、举报理由、当前状态、处理人、处理时间和版本。
+
+### 14.4 管理端举报详情
+
+```http
+GET /admin/reports/{reportId}
+token: <管理员 accessToken>
+```
+
+返回举报人资料及历史举报统计、目标媒体当前信息、理由、状态、处理信息、同目标其他进行中举报数量、当前版本，以及最近最多 100 条追加式操作日志。第一版不保存举报时对象快照；目标被删除后 `target.exists` 为 `false`。
+
+### 14.5 提交举报处理决定
+
+```http
+POST /admin/reports/{reportId}/decision
+token: <管理员 accessToken>
+Content-Type: application/json
+
+{
+  "decision": "CONFIRM",
+  "reason": "确认存在未经授权的版权内容",
+  "actions": [
+    {"type": "HIDE_MEDIA", "frozenUntil": null, "reason": null}
+  ],
+  "expectedVersion": 0
+}
+```
+
+`decision` 支持 `CONFIRM`、`DISMISS` 和 `CLOSE`。确认成立时必须填写理由并至少提供一个动作；动作支持 `HIDE_MEDIA`、`RESTORE_MEDIA`、`FREEZE_USER` 和 `NO_ACTION`。`FREEZE_USER` 需要提供未来的 `frozenUntil` 和非空 `reason`，目标用户为媒体上传者。
+
+处理使用 `expectedVersion` 执行 XML 条件更新；举报状态变化、资源处置和操作日志位于同一数据库事务。成功响应包含终态、处理人和时间、新版本及逐项动作结果。
+
+媒体存在 `PENDING` 或 `PROCESSING` 举报时，管理员永久删除接口返回冲突错误，不会删除媒体及关联数据。
+
+## 15. 错误码对照
+
+### 15.1 通用与认证
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -4318,7 +4424,7 @@ Content-Type: application/json
 | 500 | `10201` | 凭证轮换失败，请稍后再试 | 并发刷新或 Redis 原子轮换失败；不要继续使用旧 token |
 | 400 | `10300` | 非法的一次性登录票据 | loginTicket 无效、已过期或已被使用，需要重新发起统一认证 |
 
-### 14.2 地图
+### 15.2 地图
 
 | HTTP | `code` | 默认 `msg` | 当前使用情况 |
 |---:|---:|---|---|
@@ -4329,7 +4435,7 @@ Content-Type: application/json
 | 400 | `12201` | 地点不属于指定校区 | 已定义，当前接口未抛出 |
 | 400 | `12300` | 地图点位查询必须且只能指定 cityId 或 campusId | 使用中 |
 
-### 14.3 媒体与收藏夹
+### 15.3 媒体与收藏夹
 
 | HTTP | `code` | 默认 `msg` |
 |---:|---:|---|
@@ -4346,7 +4452,7 @@ Content-Type: application/json
 | 403 | `13200` | 当前账号无原图下载权限 |
 | 404 | `13300` | 时光对比不存在或不可见 |
 
-### 14.4 投稿与上传
+### 15.4 投稿与上传
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -4363,7 +4469,7 @@ Content-Type: application/json
 | 409 | `14010` | 稿件已发生变化，请刷新后重试 | 作者修改、重新提交或撤回时发生乐观锁冲突 |
 | 400 | `19000` | 请求体过大 | 请求在 multipart 解析阶段超过限制 |
 
-### 14.5 搜索、发现与话题
+### 15.5 搜索、发现与话题
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -4371,7 +4477,7 @@ Content-Type: application/json
 | 400 | `15001` | 搜索排序方式不正确 | `sort` 不属于允许值 |
 | 404 | `15100` | 专题不存在或已停用 | 话题详情和话题媒体接口使用；代码枚举文案使用“专题” |
 
-### 14.6 个人中心
+### 15.6 个人中心
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -4386,7 +4492,7 @@ Content-Type: application/json
 | 400 | `16201` | 头像文件过大 | 文件超过 5 MiB |
 | 400 | `16202` | 头像文件类型不支持 | 仅支持 PNG、JPEG、WebP，且 MIME 必须与文件内容一致 |
 
-### 14.7 公告与管理员用户管理
+### 15.7 公告与管理员用户管理
 
 > 当前代码为公告和管理员用户管理重复分配了 `17000～17002`。前端必须结合请求接口解释，不能只按业务码做全局文案映射。
 
@@ -4403,7 +4509,7 @@ Content-Type: application/json
 | 400 | `17005` | 冻结截止时间必须晚于当前时间 | 冻结截止时间缺失或无效 |
 | 400 | `17006` | 请至少提供一项需要修改的用户权限 | 权限空更新 |
 
-### 14.8 标签与管理员分类、资源运维
+### 15.8 标签与管理员分类、资源运维
 
 | HTTP | `code` | 默认 `msg` |
 |---:|---:|---|
@@ -4414,6 +4520,7 @@ Content-Type: application/json
 | 404 | `17110` | 地点不存在 |
 | 400 | `17111` | 请至少提供一项需要修改的地点信息 |
 | 400 | `17112` | 目标校区不存在或已停用 |
+| 400 | `17113` | 地点分类不存在或已停用 |
 | 404 | `17200` | 媒体不存在 |
 | 400 | `17201` | 请至少提供地点或标签分类 |
 | 400 | `17202` | 媒体所属地点不存在或已停用 |
@@ -4426,7 +4533,7 @@ Content-Type: application/json
 | 409 | `17401` | 专题标识已存在 |
 | 400 | `17402` | 请至少提供一项需要修改的专题信息 |
 
-### 14.9 管理员投稿审核
+### 15.9 管理员投稿审核
 
 | HTTP | `code` | 默认 `msg` | 说明 |
 |---:|---:|---|---|
@@ -4435,7 +4542,23 @@ Content-Type: application/json
 | 409 | `17502` | 稿件已被其他管理员处理，请刷新后重试 | `expectedVersion` 过期，或相同版本已被其他审核人/决定使用 |
 | 400 | `17503` | 退回或拒绝稿件时必须填写原因 | `RETURN`、`REJECT` 的原因去除首尾空白后为空 |
 
-## 15. 前端接入检查清单
+### 15.10 举报与举报管理
+
+| HTTP | `code` | 默认 `msg` |
+|---:|---:|---|
+| 404 | `18000` | 举报对象不存在或不可举报 |
+| 400 | `18001` | 举报理由不存在或已停用 |
+| 409 | `18002` | 请勿重复举报同一内容 |
+| 429 | `18003` | 举报提交过于频繁，请稍后再试 |
+| 404 | `18004` | 举报记录不存在 |
+| 409 | `18005` | 举报已被其他管理员处理，请刷新后重试 |
+| 409 | `18006` | 当前举报状态不允许执行该操作 |
+| 400 | `18007` | 确认举报成立时必须填写处理理由 |
+| 400 | `18008` | 确认举报成立时必须指定处置动作 |
+| 400 | `18009` | 举报处置动作不合法 |
+| 409 | `18010` | 媒体存在尚未处理的举报，暂时无法删除 |
+
+## 16. 前端接入检查清单
 
 - 使用环境变量维护 `BASE_URL`，不要根据 Controller 注释硬编码 `/api/v1`。
 - 请求头名称使用小写或原样 `token`，值只放 JWT，不加 `Bearer `。
@@ -4455,5 +4578,6 @@ Content-Type: application/json
 - 管理员审核提交前必须使用列表或详情返回的最新 `version` 作为 `expectedVersion`；收到 `17502` 时刷新稿件，不要直接使用旧版本重试。
 - 批量审核必须逐项检查 `data.items[].success`；外层 `code === 0` 不表示全部成功。
 - 管理员永久删除媒体会同时删除业务关联和存储文件，前端应增加不可恢复确认。
+- 举报理由必须从 `/reports/reasons` 获取；管理员处理举报前使用详情中的最新 `version`，收到 `18005` 后刷新而不是直接重试。
 - `17000～17002` 当前在公告和管理员用户模块间冲突，错误展示必须结合请求接口。
 - 可用 `/ping/public` 做免登录存活检查，用 `/ping/auth`、`/ping/admin` 分别检查登录和管理员鉴权链路。

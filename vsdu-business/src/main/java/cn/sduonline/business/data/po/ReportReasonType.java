@@ -8,27 +8,14 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("city")
-public class City {
-
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
-
-    private String name;
-
+@TableName("report_reason_type")
+public class ReportReasonType {
+    @TableId(type = IdType.INPUT)
     private String code;
-
-    private String province;
-
-    private String coverKey;
-
+    private String name;
     private String description;
-
+    private Boolean enabled;
     private Integer sortOrder;
-
-    private Integer status;
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 }

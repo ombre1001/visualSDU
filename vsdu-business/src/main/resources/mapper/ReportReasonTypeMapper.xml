@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.ReportReasonTypeMapper">
+
+    <select id="selectEnabled" resultType="cn.sduonline.business.data.po.ReportReasonType">
+        SELECT code, name, description, enabled, sort_order, created_at, updated_at
+        FROM report_reason_type
+        WHERE enabled = 1
+        ORDER BY sort_order, code
+    </select>
+
+    <select id="selectEnabledByCode" resultType="cn.sduonline.business.data.po.ReportReasonType">
+        SELECT code, name, description, enabled, sort_order, created_at, updated_at
+        FROM report_reason_type
+        WHERE code = #{code}
+          AND enabled = 1
+        LIMIT 1
+    </select>
+
+</mapper>

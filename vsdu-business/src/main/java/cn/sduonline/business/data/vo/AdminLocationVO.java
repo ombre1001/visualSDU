@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 public record AdminLocationVO(
         Long id, Long campusId, String name, String categoryCode, String address,
-        BigDecimal longitude, BigDecimal latitude, String coverUrl, String description,
+        BigDecimal longitude, BigDecimal latitude, String coverKey, String description,
         Integer sortOrder, Integer status, LocalDateTime createdAt, LocalDateTime updatedAt
 ) {
 }

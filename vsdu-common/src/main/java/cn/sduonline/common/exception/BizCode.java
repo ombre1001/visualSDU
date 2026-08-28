@@ -108,6 +108,7 @@ public enum BizCode {
     ADMIN_LOCATION_NOT_FOUND(17110, "地点不存在", 404),
     ADMIN_LOCATION_UPDATE_EMPTY(17111, "请至少提供一项需要修改的地点信息", 400),
     ADMIN_LOCATION_CAMPUS_INVALID(17112, "目标校区不存在或已停用", 400),
+    ADMIN_LOCATION_CATEGORY_INVALID(17113, "地点分类不存在或已停用", 400),
     ADMIN_MEDIA_NOT_FOUND(17200, "媒体不存在", 404),
     ADMIN_MEDIA_CLASSIFICATION_EMPTY(17201, "请至少提供地点或标签分类", 400),
     ADMIN_MEDIA_LOCATION_INVALID(17202, "媒体所属地点不存在或已停用", 400),
@@ -125,6 +126,19 @@ public enum BizCode {
     ADMIN_SUBMISSION_NOT_PENDING(17501, "稿件已不处于待审核状态", 409),
     ADMIN_SUBMISSION_VERSION_CONFLICT(17502, "稿件已被其他管理员处理，请刷新后重试", 409),
     ADMIN_SUBMISSION_REVIEW_REASON_REQUIRED(17503, "退回或拒绝稿件时必须填写原因", 400),
+
+    // 内容举报：18xxx
+    REPORT_TARGET_NOT_FOUND(18000, "举报对象不存在或不可举报", 404),
+    REPORT_REASON_INVALID(18001, "举报理由不存在或已停用", 400),
+    REPORT_DUPLICATE_ACTIVE(18002, "请勿重复举报同一内容", 409),
+    REPORT_RATE_LIMIT_EXCEEDED(18003, "举报提交过于频繁，请稍后再试", 429),
+    REPORT_NOT_FOUND(18004, "举报记录不存在", 404),
+    REPORT_VERSION_CONFLICT(18005, "举报已被其他管理员处理，请刷新后重试", 409),
+    REPORT_STATUS_INVALID(18006, "当前举报状态不允许执行该操作", 409),
+    REPORT_DECISION_REASON_REQUIRED(18007, "确认举报成立时必须填写处理理由", 400),
+    REPORT_ACTION_REQUIRED(18008, "确认举报成立时必须指定处置动作", 400),
+    REPORT_ACTION_INVALID(18009, "举报处置动作不合法", 400),
+    MEDIA_ACTIVE_REPORT_EXISTS(18010, "媒体存在尚未处理的举报，暂时无法删除", 409),
 
     // 其它：19xxx
     UPLOAD_SIZE_TOO_LARGE(19000, "请求体过大", 400),

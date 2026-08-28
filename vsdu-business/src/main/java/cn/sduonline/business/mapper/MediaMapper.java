@@ -51,6 +51,8 @@ public interface MediaMapper extends BaseMapper<Media> {
 
     List<Media> selectByExactTag(@Param("tag") String tag);
 
+    Media selectByIdForUpdate(@Param("mediaId") Long mediaId);
+
     int batchUpdateTags(
             @Param("patches") List<MediaTagPatch> patches,
             @Param("updatedAt") LocalDateTime updatedAt

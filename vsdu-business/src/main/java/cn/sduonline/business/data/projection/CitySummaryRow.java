@@ -8,7 +8,7 @@ public class CitySummaryRow {
     private String name;
     private String code;
     private String province;
-    private String coverUrl;
+    private String coverKey;
     private String description;
     private Long campusCount;
 }

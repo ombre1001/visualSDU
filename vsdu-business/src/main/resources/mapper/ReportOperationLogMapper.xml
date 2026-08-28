@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.ReportOperationLogMapper">
+
+    <select id="selectByReport"
+            resultType="cn.sduonline.business.data.projection.AdminReportOperationLogRow">
+        SELECT
+            log.id,
+            log.report_id,
+            log.operator_id,
+            COALESCE(NULLIF(operator_user.nickname, ''), NULLIF(operator_user.name, ''), operator_user.cas_id) AS operator_name,
+            log.operation_type,
+            log.decision,
+            log.before_status,
+            log.after_status,
+            log.reason,
+            log.actions_json,
+            log.result_json,
+            log.report_version,
+            log.created_at
+        FROM report_operation_log log
+        LEFT JOIN `user` operator_user ON operator_user.id = log.operator_id
+        WHERE log.report_id = #{reportId}
+        ORDER BY log.created_at DESC, log.id DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

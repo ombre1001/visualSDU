@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.ReportMapper">
+
+    <sql id="adminConditions">
+        <where>
+            <if test="status != null">
+                r.status = #{status}
+            </if>
+            <if test="targetType != null and targetType != ''">
+                AND r.target_type = #{targetType}
+            </if>
+            <if test="reasonCode != null and reasonCode != ''">
+                AND r.reason_code = #{reasonCode}
+            </if>
+            <if test="reporterId != null">
+                AND r.reporter_id = #{reporterId}
+            </if>
+            <if test="createdFrom != null">
+                AND r.created_at &gt;= #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND r.created_at &lt;= #{createdTo}
+            </if>
+        </where>
+    </sql>
+
+    <select id="countSubmittedSince" resultType="long">
+        SELECT COUNT(*)
+        FROM report
+        WHERE reporter_id = #{reporterId}
+          AND created_at &gt;= #{since}
+    </select>
+
+    <select id="existsActiveByReporterTarget" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1
+            FROM report
+            WHERE reporter_id = #{reporterId}
+              AND target_type = #{targetType}
+              AND target_id = #{targetId}
+              AND status IN (0, 1)
+        )
+    </select>
+
+    <select id="existsActiveByTarget" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1
+            FROM report
+            WHERE target_type = #{targetType}
+              AND target_id = #{targetId}
+              AND status IN (0, 1)
+        )
+    </select>
+
+    <select id="countAdminReports" resultType="long">
+        SELECT COUNT(*)
+        FROM report r
+        <include refid="adminConditions"/>
+    </select>
+
+    <select id="selectAdminReportPage"
+            resultType="cn.sduonline.business.data.projection.AdminReportSummaryRow">
+        SELECT
+            r.id,
+            r.reporter_id,
+            COALESCE(NULLIF(reporter.nickname, ''), NULLIF(reporter.name, ''), reporter.cas_id) AS reporter_name,
+            r.target_type,
+            r.target_id,
+            CASE WHEN r.target_type = 'MEDIA' THEN media.title END AS target_title,
+            CASE WHEN r.target_type = 'MEDIA'
+                THEN COALESCE(NULLIF(media.thumbnail_key, ''), media.object_key)
+            END AS target_thumbnail_key,
+            r.reason_code,
+            reason.name AS reason_name,
+            r.description,
+            r.status,
+            r.processed_by,
+            COALESCE(NULLIF(processor.nickname, ''), NULLIF(processor.name, ''), processor.cas_id) AS processor_name,
+            r.processed_at,
+            r.created_at,
+            r.version
+        FROM report r
+        INNER JOIN `user` reporter ON reporter.id = r.reporter_id
+        LEFT JOIN report_reason_type reason ON reason.code = r.reason_code
+        LEFT JOIN `user` processor ON processor.id = r.processed_by
+        LEFT JOIN media ON r.target_type = 'MEDIA' AND media.id = r.target_id
+        <include refid="adminConditions"/>
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="selectAdminReportDetail"
+            resultType="cn.sduonline.business.data.projection.AdminReportDetailRow">
+        SELECT
+            r.id,
+            r.reporter_id,
+            reporter.cas_id AS reporter_cas_id,
+            reporter.name AS reporter_name,
+            reporter.nickname AS reporter_nickname,
+            reporter.avatar_key AS reporter_avatar_key,
+            (
+                SELECT COUNT(*)
+                FROM report reporter_report
+                WHERE reporter_report.reporter_id = r.reporter_id
+            ) AS reporter_report_count,
+            (
+                SELECT COUNT(*)
+                FROM report confirmed_report
+                WHERE confirmed_report.reporter_id = r.reporter_id
+                  AND confirmed_report.status = 2
+            ) AS reporter_confirmed_count,
+            r.target_type,
+            r.target_id,
+            CASE
+                WHEN r.target_type = 'MEDIA' AND media.id IS NOT NULL THEN TRUE
+                ELSE FALSE
+            END AS target_exists,
+            CASE WHEN r.target_type = 'MEDIA' THEN media.title END AS target_title,
+            CASE WHEN r.target_type = 'MEDIA' THEN media.description END AS target_description,
+            CASE WHEN r.target_type = 'MEDIA' THEN media.uploader_id END AS target_uploader_id,
+            CASE WHEN r.target_type = 'MEDIA' THEN media.status END AS target_status,
+            CASE WHEN r.target_type = 'MEDIA'
+                THEN COALESCE(NULLIF(media.thumbnail_key, ''), media.object_key)
+            END AS target_thumbnail_key,
+            r.reason_code,
+            reason.name AS reason_name,
+            reason.description AS reason_description,
+            r.description,
+            r.status,
+            r.decision_reason,
+            r.processed_by,
+            COALESCE(NULLIF(processor.nickname, ''), NULLIF(processor.name, ''), processor.cas_id) AS processor_name,
+            r.processed_at,
+            (
+                SELECT COUNT(*)
+                FROM report related_report
+                WHERE related_report.target_type = r.target_type
+                  AND related_report.target_id = r.target_id
+                  AND related_report.status IN (0, 1)
+                  AND related_report.id != r.id
+            ) AS related_active_report_count,
+            r.created_at,
+            r.updated_at,
+            r.version
+        FROM report r
+        INNER JOIN `user` reporter ON reporter.id = r.reporter_id
+        LEFT JOIN report_reason_type reason ON reason.code = r.reason_code
+        LEFT JOIN `user` processor ON processor.id = r.processed_by
+        LEFT JOIN media ON r.target_type = 'MEDIA' AND media.id = r.target_id
+        WHERE r.id = #{reportId}
+        LIMIT 1
+    </select>
+
+    <update id="updateDecisionWithVersion">
+        UPDATE report
+        SET status = #{afterStatus},
+            decision_reason = #{decisionReason},
+            processed_by = #{processedBy},
+            processed_at = #{processedAt},
+            updated_at = #{processedAt},
+            version = version + 1
+        WHERE id = #{reportId}
+          AND status IN (0, 1)
+          AND version = #{expectedVersion}
+    </update>
+
+</mapper>

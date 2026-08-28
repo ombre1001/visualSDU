@@ -13,6 +13,7 @@ import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
+import cn.sduonline.infrastructure.file.storage.FileStorage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class LocationService {
     private final LocationMapper locationMapper;
     private final MediaMapper mediaMapper;
     private final MediaService mediaService;
+    private final FileStorage fileStorage;
 
     /**
      * 查询指定校区下的地点。
@@ -78,7 +80,7 @@ public class LocationService {
                 .address(location.getAddress())
                 .longitude(location.getLongitude())
                 .latitude(location.getLatitude())
-                .coverUrl(location.getCoverKey())
+                .coverUrl(url(location.getCoverKey()))
                 .description(location.getDescription())
                 .build();
     }
@@ -194,7 +196,11 @@ public class LocationService {
                 .address(location.getAddress())
                 .longitude(location.getLongitude())
                 .latitude(location.getLatitude())
-                .coverUrl(location.getCoverKey())
+                .coverUrl(url(location.getCoverKey()))
                 .build();
+    }
+
+    private String url(String coverKey) {
+        return coverKey == null || coverKey.isBlank() ? null : fileStorage.getUrl(coverKey);
     }
 }

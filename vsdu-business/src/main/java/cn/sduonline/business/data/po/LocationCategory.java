@@ -8,21 +8,15 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("city")
-public class City {
+@TableName("location_category")
+public class LocationCategory {
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    private String name;
 
     private String code;
 
-    private String province;
-
-    private String coverKey;
-
-    private String description;
+    private String name;
 
     private Integer sortOrder;
 

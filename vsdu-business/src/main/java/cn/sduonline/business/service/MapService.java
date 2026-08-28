@@ -10,6 +10,7 @@ import cn.sduonline.business.mapper.CityMapper;
 import cn.sduonline.business.mapper.LocationMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.infrastructure.file.storage.FileStorage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class MapService {
     private final CityMapper cityMapper;
     private final CampusMapper campusMapper;
     private final LocationMapper locationMapper;
+    private final FileStorage fileStorage;
 
     /**
      * cityId不为空：查询该城市下的校区点位。
@@ -115,8 +117,12 @@ public class MapService {
                         .name(location.getName())
                         .longitude(location.getLongitude())
                         .latitude(location.getLatitude())
-                        .coverUrl(location.getCoverKey())
+                        .coverUrl(url(location.getCoverKey()))
                         .build())
                 .toList();
+    }
+
+    private String url(String coverKey) {
+        return coverKey == null || coverKey.isBlank() ? null : fileStorage.getUrl(coverKey);
     }
 }

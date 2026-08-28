@@ -1,6 +1,7 @@
 package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.dto.AdminMediaClassificationRequest;
+import cn.sduonline.business.data.enums.ReportTargetType;
 import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Tag;
@@ -38,6 +39,7 @@ public class AdminMediaService {
     private final SubmissionAssetMapper submissionAssetMapper;
     private final TimeComparisonItemMapper timeComparisonItemMapper;
     private final TimeComparisonMapper timeComparisonMapper;
+    private final ReportMapper reportMapper;
     private final FileStorage fileStorage;
 
     public PageResult<AdminMediaVO> list(String keyword, Long locationId, Integer status, long page, long size) {
@@ -105,7 +107,11 @@ public class AdminMediaService {
      */
     @Transactional
     public void delete(Long id) {
-        Media media = requireMedia(id);
+        Media media = mediaMapper.selectByIdForUpdate(id);
+        if (media == null) throw new BizException(BizCode.ADMIN_MEDIA_NOT_FOUND);
+        if (reportMapper.existsActiveByTarget(ReportTargetType.MEDIA.name(), id)) {
+            throw new BizException(BizCode.MEDIA_ACTIVE_REPORT_EXISTS);
+        }
 
         favoriteFolderMapper.clearCoverMedia(id);
         mediaLikeMapper.deleteByMedia(id);

@@ -29,6 +29,13 @@
         </where>
     </sql>
 
+    <select id="selectByIdForUpdate" resultType="cn.sduonline.business.data.po.Media">
+        SELECT <include refid="allColumns"/>
+        FROM media m
+        WHERE m.id = #{mediaId}
+        FOR UPDATE
+    </select>
+
     <select id="selectSearchSuggestions"
             resultType="cn.sduonline.business.data.projection.SearchSuggestionRow">
         SELECT

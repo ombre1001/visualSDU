@@ -5,6 +5,7 @@ import cn.sduonline.business.data.dto.AdminUpdateTopicRequest;
 import cn.sduonline.business.data.dto.AdminUpdateUserPermissionRequest;
 import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.enums.SubmissionStatus;
+import cn.sduonline.business.data.enums.ReportStatus;
 import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Submission;
 import cn.sduonline.business.data.po.Topic;
@@ -36,11 +37,11 @@ class MapperXmlParsingTest {
         MybatisConfiguration configuration = parseMappers();
 
         Location location = new Location();
-        location.setDescription(null);
+        location.setCoverKey(null);
         Map<String, Object> locationParams = new HashMap<>();
         locationParams.put("id", 1L);
         locationParams.put("request", new AdminUpdateLocationRequest(
-                null, null, null, null, null, null, null, "", null, null
+                null, null, null, null, null, null, "", null, null, null
         ));
         locationParams.put("value", location);
         locationParams.put("updatedAt", LocalDateTime.now());
@@ -56,7 +57,7 @@ class MapperXmlParsingTest {
         topicParams.put("updatedAt", LocalDateTime.now());
 
         assertSqlContains(configuration, "cn.sduonline.business.mapper.LocationMapper.updatePartial",
-                locationParams, "description = ?");
+                locationParams, "cover_key = ?");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.TopicMapper.updatePartial",
                 topicParams, "cover_url = ?");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.UserMapper.updatePermissionsPartial",
@@ -103,6 +104,28 @@ class MapperXmlParsingTest {
         assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionReviewLogMapper.selectPageBySubmission",
                 Map.of("submissionId", 1L, "offset", 0L, "size", 20L),
                 "ORDER BY log.round_no DESC");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.ReportMapper.updateDecisionWithVersion",
+                Map.of(
+                        "reportId", 1L,
+                        "expectedVersion", 2,
+                        "afterStatus", ReportStatus.CONFIRMED.getValue(),
+                        "decisionReason", "举报成立",
+                        "processedBy", 7L,
+                        "processedAt", LocalDateTime.now()
+                ), "version = version + 1");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.ReportMapper.selectAdminReportPage",
+                Map.of(
+                        "status", ReportStatus.PENDING.getValue(),
+                        "targetType", "MEDIA",
+                        "reasonCode", "COPYRIGHT",
+                        "reporterId", 2L,
+                        "createdFrom", LocalDateTime.now().minusDays(7),
+                        "createdTo", LocalDateTime.now(),
+                        "offset", 0L,
+                        "size", 20L
+                ), "ORDER BY r.created_at DESC");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaMapper.selectByIdForUpdate",
+                Map.of("mediaId", 1L), "FOR UPDATE");
 
         Submission submission = Submission.builder()
                 .id(1L)
