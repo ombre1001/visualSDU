@@ -1,5 +1,7 @@
 package cn.sduonline.business.service;
 
+import cn.sduonline.business.data.dto.MediaTicketData;
+import cn.sduonline.business.data.dto.StreamDownloadFile;
 import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.*;
 import cn.sduonline.business.data.projection.MediaSummaryRow;
@@ -8,9 +10,12 @@ import cn.sduonline.business.data.vo.MediaDownloadVO;
 import cn.sduonline.business.data.vo.MediaInteractionVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.mapper.*;
+import cn.sduonline.business.security.context.CurrentUser;
+import cn.sduonline.business.util.MediaTicketUtils;
 import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
+import cn.sduonline.infrastructure.file.model.DownloadFile;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 @Service
@@ -34,6 +40,7 @@ public class MediaService {
     private final UserMapper userMapper;
     private final LocationMapper locationMapper;
     private final FileStorage fileStorage;
+    private final MediaTicketUtils mediaTicketUtils;
 
     public MediaDetailVO detail(Long mediaId, Long optionalUserId) {
         return toDetail(requireVisible(mediaId), formalUserIdOrNull(optionalUserId));
@@ -105,10 +112,121 @@ public class MediaService {
         if (!Boolean.TRUE.equals(user.getAllowDownload())) {
             throw new BizException(BizCode.MEDIA_DOWNLOAD_FORBIDDEN);
         }
+
         Media media = requireVisible(mediaId);
-        downloadMapper.insertRecord(userId, mediaId, media.getObjectKey());
-        mediaMapper.increaseDownloadCount(mediaId);
+        recordDownload(userId, mediaId, media.getObjectKey());
+
         return new MediaDownloadVO(mediaId, fileStorage.getUrl(media.getObjectKey()), 600);
+    }
+
+    public String getMediaDownloadTicket(Long mediaId) {
+        User u = requireFormalUser(CurrentUser.id());
+        if (!Boolean.TRUE.equals(u.getAllowDownload())) {
+            throw new BizException(BizCode.MEDIA_DOWNLOAD_FORBIDDEN);
+        }
+
+        Media media = requireVisible(mediaId);
+        return mediaTicketUtils.getStoredMediaTicket(
+                MediaTicketData.builder()
+                        .userId(CurrentUser.id())
+                        .mediaId(mediaId)
+                        .objectKey(media.getObjectKey())
+                        .build()
+        );
+    }
+
+    private static final String DEFAULT_DOWNLOAD_NAME_TEMPLATE = "vsdu-media-%d";
+
+    @Transactional
+    public StreamDownloadFile streamDownloadFile(String ticket) {
+        var data = mediaTicketUtils.consumeStoredMediaTicket(ticket);
+        if (data == null) {
+            throw new BizException(BizCode.MEDIA_DOWNLOAD_TICKET_INVALID);
+        }
+
+        User u = requireFormalUser(data.userId());
+        if (!Boolean.TRUE.equals(u.getAllowDownload())) {
+            throw new BizException(BizCode.MEDIA_DOWNLOAD_FORBIDDEN);
+        }
+
+        Media m = requireVisible(data.mediaId());
+        if (!Objects.equals(m.getObjectKey(), data.objectKey())) {
+            throw new BizException(BizCode.MEDIA_DOWNLOAD_TICKET_INVALID);
+        }
+        recordDownload(data.userId(), data.mediaId(), data.objectKey());
+
+        DownloadFile file =  fileStorage.streamDownload(data.objectKey());
+        String filename = buildDownloadFilename(m, file.contentType());
+
+        return StreamDownloadFile.builder()
+                .contentType(file.contentType())
+                .filename(filename)
+                .inputStream(file.inputStream())
+                .size(file.size())
+                .build();
+    }
+
+    @Transactional
+    void recordDownload(Long userId, Long mediaId, String objectKey) {
+        downloadMapper.insertRecord(userId, mediaId, objectKey);
+        mediaMapper.increaseDownloadCount(mediaId);
+    }
+
+    private String buildDownloadFilename(Media media, String contentType) {
+        String base = sanitizeFilenameBase(media.getTitle());
+
+        if (base == null) {
+            base = "vsdu-media";
+        }
+
+        String ext = extensionFromContentType(contentType);
+        return base + "-" + media.getId() + ext;
+    }
+
+    private String sanitizeFilenameBase(String title) {
+        if (title == null || title.isBlank()) {
+            return null;
+        }
+
+        String name = title.strip();
+
+        // Windows 禁止字符 + 所有控制字符
+        name = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
+
+        // 合并多余空白
+        name = name.replaceAll("\\s+", " ");
+
+        // 去掉 Windows 不友好的结尾点号/空格
+        name = name.replaceAll("[. ]+$", "");
+
+        if (name.isBlank()) {
+            return null;
+        }
+
+        String upper = name.toUpperCase(Locale.ROOT);
+        if (upper.matches("CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")) {
+            name = "_" + name;
+        }
+
+        int maxLength = 80;
+        if (name.length() > maxLength) {
+            name = name.substring(0, maxLength).strip();
+        }
+
+        return name.isBlank() ? null : name;
+    }
+
+    private String extensionFromContentType(String contentType) {
+        if (contentType == null) {
+            return ".jpg";
+        }
+
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            default -> ".jpg";
+        };
     }
 
     public List<MediaSummaryVO> related(Long mediaId, int size) {
@@ -248,4 +366,6 @@ public class MediaService {
     private long value(Long count) {
         return Objects.requireNonNullElse(count, 0L);
     }
+
+
 }

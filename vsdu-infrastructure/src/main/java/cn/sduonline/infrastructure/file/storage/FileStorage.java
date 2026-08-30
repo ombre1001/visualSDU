@@ -2,6 +2,7 @@ package cn.sduonline.infrastructure.file.storage;
 
 
 import cn.sduonline.infrastructure.file.exception.FileStorageException;
+import cn.sduonline.infrastructure.file.model.DownloadFile;
 import cn.sduonline.infrastructure.file.model.UploadFile;
 
 public interface FileStorage {
@@ -11,6 +12,8 @@ public interface FileStorage {
     void delete(String objectKey) throws FileStorageException;
 
     String getUrl(String objectKey);
+
+    DownloadFile streamDownload(String objectKey);
 
     default void deleteQuietly(String objectKey) {
         try {

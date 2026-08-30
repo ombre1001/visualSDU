@@ -1,11 +1,23 @@
+# syntax=docker/dockerfile:1.7
+
 # ---------- 构建阶段 ----------
 FROM maven:3.9-eclipse-temurin-25 AS builder
 
 WORKDIR /app
 
+COPY pom.xml .
+COPY vsdu-boot/pom.xml vsdu-boot/pom.xml
+COPY vsdu-business/pom.xml vsdu-business/pom.xml
+COPY vsdu-common/pom.xml vsdu-common/pom.xml
+COPY vsdu-infrastructure/pom.xml vsdu-infrastructure/pom.xml
+
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -DskipTests dependency:go-offline
+
 COPY . .
 
-RUN mvn clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -DskipTests package
 
 
 # ---------- 运行阶段 ----------

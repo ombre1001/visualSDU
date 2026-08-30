@@ -35,6 +35,9 @@ vsdu:
   auth:
     frontend-return-url: http://localhost:5173/auth/return
 
+  media:
+    ticket-expire-seconds: 300
+
 logging:
   pattern:
     level: "%5p [traceId=%X{traceId:-N/A}] [ip=%X{ip:-N/A}]"

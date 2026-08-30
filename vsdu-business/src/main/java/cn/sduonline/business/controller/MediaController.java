@@ -1,6 +1,7 @@
 package cn.sduonline.business.controller;
 
 import cn.sduonline.business.data.dto.FavoriteMediaRequest;
+import cn.sduonline.business.data.dto.StreamDownloadFile;
 import cn.sduonline.business.data.vo.MediaDetailVO;
 import cn.sduonline.business.data.vo.MediaDownloadVO;
 import cn.sduonline.business.data.vo.MediaInteractionVO;
@@ -11,8 +12,14 @@ import cn.sduonline.business.service.MediaService;
 import cn.sduonline.common.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.InputStream;
 import java.util.List;
 
 @RestController
@@ -88,6 +95,33 @@ public class MediaController {
     @PostMapping("/{mediaId}/downloads")
     public Result<MediaDownloadVO> requestDownload(@PathVariable Long mediaId) {
         return Result.success(mediaService.requestDownload(CurrentUser.id(), mediaId), "下载地址已生成");
+    }
+
+    @PostMapping("/{mediaId}/downloads/ticket")
+    public Result<String> mediaDownloadTicket(@PathVariable Long mediaId) {
+        return Result.success(mediaService.getMediaDownloadTicket(mediaId));
+    }
+
+    @PublicApi
+    @GetMapping("/downloads/stream")
+    public ResponseEntity<StreamingResponseBody> downloadStream(@RequestParam(name = "ticket") String ticket) {
+        StreamDownloadFile downloadFile = mediaService.streamDownloadFile(ticket);
+
+        StreamingResponseBody body = outputStream -> {
+            try (InputStream inputStream = downloadFile.inputStream()) {
+                inputStream.transferTo(outputStream);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(downloadFile.contentType()))
+                .contentLength(downloadFile.size())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + downloadFile.encodedFilename()
+                )
+                .cacheControl(CacheControl.noStore())
+                .body(body);
     }
 
     /**

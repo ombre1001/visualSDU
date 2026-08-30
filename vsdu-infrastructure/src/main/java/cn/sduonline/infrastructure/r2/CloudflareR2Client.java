@@ -4,6 +4,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -61,7 +62,7 @@ public class CloudflareR2Client {
 
     /**
      * 上传文件到 Cloudflare R2。
-     *
+     * <p>
      * 将输入流转换为字节数组，保证 AWS SDK 在签名、发送或重试时
      * 可以重复读取上传内容。
      */
@@ -152,9 +153,7 @@ public class CloudflareR2Client {
         );
     }
 
-    public String generatePresignedUrl(
-            String objectKey
-    ) throws S3Exception {
+    public String generatePresignedUrl(String objectKey) throws S3Exception {
         if (objectKey == null || objectKey.isBlank()) {
             throw new IllegalArgumentException("R2对象键不能为空");
         }
@@ -173,6 +172,15 @@ public class CloudflareR2Client {
         return s3Presigner.presignGetObject(presignRequest)
                 .url()
                 .toString();
+    }
+
+    public ResponseInputStream<GetObjectResponse> getObjectStream(String objectKey) {
+        GetObjectRequest objectRequest = GetObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(objectKey)
+                .build();
+
+        return s3Client.getObject(objectRequest);
     }
 
     @PreDestroy

@@ -36,6 +36,7 @@ public class JwtTokenUtils {
 
     private static final int DEFAULT_REFRESH_TOKEN_BYTES = 32;
     private static final int DEFAULT_LOGIN_TICKET_BYTES = 24;
+    private static final int DEFAULT_MEDIA_DOWNLOAD_TICKET_BYTES = 24;
 
     public JwtTokenUtils(
             SduPassJwtProperties properties,
@@ -98,6 +99,10 @@ public class JwtTokenUtils {
 
     public String generateLoginTicket() {
         return generateRandomToken(DEFAULT_LOGIN_TICKET_BYTES);
+    }
+
+    public String generateMediaDownloadTicket() {
+        return generateRandomToken(DEFAULT_MEDIA_DOWNLOAD_TICKET_BYTES);
     }
 
     public String generateRandomToken(int byteLength) {

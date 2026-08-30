@@ -1,6 +1,7 @@
 package cn.sduonline.infrastructure.file.storage;
 
 import cn.sduonline.infrastructure.file.exception.FileStorageException;
+import cn.sduonline.infrastructure.file.model.DownloadFile;
 import cn.sduonline.infrastructure.file.model.UploadFile;
 import cn.sduonline.infrastructure.r2.CloudflareR2Client;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +51,15 @@ public class CloudflareR2FileStorage implements FileStorage{
     @Override
     public String getUrl(String objectKey) {
         return r2Client.generatePresignedUrl(objectKey);
+    }
+
+    @Override
+    public DownloadFile streamDownload(String objectKey) {
+        var input = r2Client.getObjectStream(objectKey);
+        return DownloadFile.builder()
+                .contentType(input.response().contentType())
+                .inputStream(input)
+                .size(input.response().contentLength())
+                .build();
     }
 }
