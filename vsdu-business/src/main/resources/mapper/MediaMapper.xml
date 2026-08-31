@@ -143,6 +143,19 @@
         ORDER BY id
     </select>
 
+    <select id="countVisibleCreatedBetween" resultType="java.lang.Long">
+        select COUNT(*)
+        from media
+        where
+            status = 1
+        AND
+            created_at between #{start} and #{end}
+    </select>
+
+    <select id="countVisibleTotal" resultType="java.lang.Long">
+        select COUNT(*) from media where status = 1
+    </select>
+
     <update id="batchUpdateTags">
         UPDATE media
         SET tags = CASE id

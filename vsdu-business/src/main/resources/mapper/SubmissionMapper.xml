@@ -173,6 +173,10 @@
           AND s.deleted = 0
     </select>
 
+    <select id="countPendingSubmissions" resultType="java.lang.Long">
+        select COUNT(*) from submission where status = 0 and deleted = 0
+    </select>
+
     <update id="updateReviewWithVersion">
         UPDATE submission
         SET status = #{afterStatus},

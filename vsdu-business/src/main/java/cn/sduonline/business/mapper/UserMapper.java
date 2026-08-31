@@ -75,4 +75,11 @@ public interface UserMapper extends BaseMapper<User> {
             @Param("userId") String userId,
             @Param("phone") String phone
     );
+
+    long countRegisteredBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    long countRegisteredTotal();
 }

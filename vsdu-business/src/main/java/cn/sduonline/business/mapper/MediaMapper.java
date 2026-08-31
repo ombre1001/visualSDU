@@ -75,4 +75,11 @@ public interface MediaMapper extends BaseMapper<Media> {
 
     @Update("UPDATE media SET download_count = download_count + 1 WHERE id = #{mediaId} AND status = 1")
     void increaseDownloadCount(@Param("mediaId") Long mediaId);
+
+    long countVisibleCreatedBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    long countVisibleTotal();
 }

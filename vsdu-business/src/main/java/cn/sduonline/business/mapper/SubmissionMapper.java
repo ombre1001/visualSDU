@@ -13,6 +13,8 @@ import java.util.List;
 
 @Mapper
 public interface SubmissionMapper extends BaseMapper<Submission> {
+    long countPendingSubmissions();
+
     long countMine(
             @Param("userId") Long userId,
             @Param("status") Integer status

@@ -120,6 +120,14 @@
         select * from user where cas_id = #{casId}
     </select>
 
+    <select id="countRegisteredBetween" resultType="java.lang.Long">
+        select COUNT(*) from user where created_at between #{start} and #{end} where delete = 0
+    </select>
+
+    <select id="countRegisteredTotal" resultType="java.lang.Long">
+        select COUNT(*) from user where delete = 0
+    </select>
+
     <update id="updatePhoneById">
         update user set phone = #{phone} where id = #{userId}
     </update>

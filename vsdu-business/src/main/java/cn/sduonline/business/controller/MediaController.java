@@ -97,11 +97,18 @@ public class MediaController {
         return Result.success(mediaService.requestDownload(CurrentUser.id(), mediaId), "下载地址已生成");
     }
 
+    /**
+     * 获取媒体下载票据
+     */
     @PostMapping("/{mediaId}/downloads/ticket")
     public Result<String> mediaDownloadTicket(@PathVariable Long mediaId) {
         return Result.success(mediaService.getMediaDownloadTicket(mediaId));
     }
 
+    /**
+     * 流式下载媒体
+     * 凭票据访问此接口，流式下载票据对应媒体
+     */
     @PublicApi
     @GetMapping("/downloads/stream")
     public ResponseEntity<StreamingResponseBody> downloadStream(@RequestParam(name = "ticket") String ticket) {

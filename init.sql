@@ -716,6 +716,47 @@ create index idx_report_operation_time
 create index idx_report_operator_time
     on report_operation_log (operator_id, created_at, id);
 
+create table daily_stats
+(
+    stat_date date not null comment '统计日期'
+        primary key,
+
+    pending_review_count bigint unsigned default 0 not null comment '当日结束时待审核投稿存量',
+    daily_uploaded_media_count bigint unsigned default 0 not null comment '当日新增图片数',
+    visible_media_total bigint unsigned default 0 not null comment '当日结束时可见图片总量',
+    daily_registered_user_count bigint unsigned default 0 not null comment '当日新增注册用户数',
+    registered_user_total bigint unsigned default 0 not null comment '当日结束时注册用户总量',
+
+    created_at datetime(3) default CURRENT_TIMESTAMP(3) not null comment '创建时间',
+    updated_at datetime(3) default CURRENT_TIMESTAMP(3) not null on update CURRENT_TIMESTAMP(3) comment '更新时间'
+)
+    comment '管理员首页每日统计快照'
+    collate = utf8mb4_unicode_ci;
+
+create table user_favorite_target
+(
+    id bigint unsigned auto_increment primary key,
+    user_id bigint unsigned not null comment '用户ID',
+    target_type varchar(32) not null comment '收藏目标类型：LOCATION/TOPIC',
+    target_id bigint unsigned not null comment '目标ID',
+    created_at datetime default CURRENT_TIMESTAMP not null comment '收藏时间',
+
+    constraint uk_user_favorite_target
+        unique (user_id, target_type, target_id),
+
+    constraint fk_user_favorite_target_user
+        foreign key (user_id) references user (id)
+)
+    comment '用户通用收藏目标'
+    collate = utf8mb4_unicode_ci;
+
+create index idx_user_favorite_target_list
+    on user_favorite_target (user_id, target_type, created_at, id);
+
+create index idx_user_favorite_target_target
+    on user_favorite_target (target_type, target_id);
+
+
 -- 地点分类字典
 insert into location_category (code, name, sort_order, status) values
     ('BUILDING', '教学及办公建筑', 10, 1),
