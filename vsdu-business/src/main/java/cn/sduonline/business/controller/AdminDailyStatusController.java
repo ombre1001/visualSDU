@@ -28,6 +28,10 @@ public class AdminDailyStatusController {
         log.info("管理员首页每日统计快照完成，statDate={}", statDate);
     }
 
+    /**
+     * 管理员首页统计
+     * 查询管理员首页所需的实时统计数据及昨日对比增量。
+     */
     @AdminApi
     @GetMapping("/dashboard/stats")
     public Result<StatsResponse> stats() {

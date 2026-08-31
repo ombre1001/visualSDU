@@ -1,6 +1,6 @@
 # visualSDU 前端接口对照文档
 
-> 总结日期：2026-08-25
+> 总结日期：2026-08-31
 > 本文描述的是**当前代码实际行为**，不是规划中的接口。
 
 ## 1. 全局约定
@@ -102,7 +102,7 @@ token: <accessToken>
 
 ## 2. 接口总览
 
-至今开发完成的共有 96 个实际映射的接口。
+至今开发完成的共有 97 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
@@ -165,6 +165,7 @@ token: <accessToken>
 | 投稿 | PUT | `/submissions/{submissionId}` | 登录 | Multipart | 投稿详情对象 |
 | 投稿 | POST | `/submissions/{submissionId}/resubmit` | 登录 | Path | 投稿详情对象 |
 | 投稿 | POST | `/submissions/{submissionId}/withdraw` | 登录 | Path | `null` |
+| 管理 | GET | `/admin/dashboard/stats` | 管理员 | - | 管理员首页统计对象 |
 | 管理 | PUT | `/admin/settings/submission-review` | 管理员 | JSON | 审核设置对象 |
 | 管理审核 | GET | `/admin/submissions` | 管理员 | Query | 管理稿件摘要分页对象 |
 | 管理审核 | GET | `/admin/submissions/{submissionId}` | 管理员 | Path | 管理稿件详情对象 |
@@ -2924,6 +2925,52 @@ Content-Type: application/json
 ```
 
 主要错误：`17301` 地点不存在或停用、`17300` 媒体不存在/隐藏/不属于该地点，以及重复媒体对应通用 `400`。
+
+### 8.26 管理员首页统计
+
+```http
+GET /admin/dashboard/stats
+token: <管理员 accessToken>
+```
+
+权限：管理员。返回管理员首页卡片所需的实时统计值，以及基于昨日快照计算的较昨日增量。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.totalMediaCount` | number | 否 | 当前可见图片总量 |
+| `data.monthlyDeltaMediaCount` | number | 否 | 本月新增可见图片数 |
+| `data.dailyDeltaMediaCount` | number | 否 | 当前可见图片总量较昨日快照的增量 |
+| `data.pendingSubmissionsCount` | number | 否 | 当前待审核投稿数量 |
+| `data.dailyDeltaPendingSubmissionsCount` | number | 否 | 当前待审核投稿数量较昨日快照的增量 |
+| `data.dayUploadedMediaCount` | number | 否 | 今日新增可见图片数 |
+| `data.dailyDeltaDayUploadedMediaCount` | number | 否 | 今日新增可见图片数较昨日新增图片数的差值 |
+| `data.registeredUsers` | number | 否 | 当前注册用户总量 |
+| `data.dailyDeltaRegisteredUsers` | number | 否 | 当前注册用户总量较昨日快照的增量 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "totalMediaCount": 1266,
+    "monthlyDeltaMediaCount": 86,
+    "dailyDeltaMediaCount": 24,
+    "pendingSubmissionsCount": 12,
+    "dailyDeltaPendingSubmissionsCount": -2,
+    "dayUploadedMediaCount": 36,
+    "dailyDeltaDayUploadedMediaCount": 6,
+    "registeredUsers": 3268,
+    "dailyDeltaRegisteredUsers": 18
+  },
+  "timestamp": 1788249600000
+}
+```
+
+主要错误：`10103` 非管理员。
 
 ## 9. 健康检查接口及其他代码现状提醒
 
