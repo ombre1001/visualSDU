@@ -6,6 +6,8 @@ public record TopicSummaryVO(
         String slug,
         String description,
         String coverUrl,
-        long mediaCount
+        long mediaCount,
+        long favoriteCount,
+        boolean favorited
 ) {
 }

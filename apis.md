@@ -97,12 +97,12 @@ token: <accessToken>
 - `LocalDateTime` 使用不带时区的 ISO 8601 字符串，例如 `2026-08-15T14:30:00`。
 - ID、计数和经纬度在 JSON 中均为数字。
 - 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建投稿的标签 ID 使用 `tagIds` 同名多值字段，修改投稿的标签名称仍使用 `tags` 同名多值字段。
-- 媒体图片、缩略图、投稿预览、用户头像、城市与地点封面和下载地址由 R2 ObjectKey 生成预签名 URL，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。
+- 媒体图片、缩略图、投稿预览、用户头像、城市与地点封面和旧版下载地址由 R2 ObjectKey 生成预签名 URL，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。流式下载接口返回同源文件流，不返回 JSON。
 - 城市和地点在数据库中只保存 `coverKey`；公开接口返回由 `FileStorage#getUrl` 生成的 `coverUrl`。校区当前仍直接保存并返回 URL。
 
 ## 2. 接口总览
 
-至今开发完成的共有 87 个实际映射的接口。
+至今开发完成的共有 96 个实际映射的接口。
 
 | 模块 | 方法 | 路径 | 权限 | 请求格式 | `data` 类型 |
 |---|---|---|---|---|---|
@@ -125,6 +125,8 @@ token: <accessToken>
 | 校区 | GET | `/campuses/{campusId}/locations` | 公开 | Query | 地点摘要对象数组 |
 | 地点 | GET | `/locations/{locationId}` | 公开 | Path | 地点详情对象 |
 | 地点 | GET | `/locations/{locationId}/media` | 公开 | Query | 媒体摘要分页对象 |
+| 地点 | POST | `/locations/{locationId}/favorites` | 登录 | Path | 地点收藏状态对象 |
+| 地点 | DELETE | `/locations/{locationId}/favorites` | 登录 | Path | 地点收藏状态对象 |
 | 地图 | GET | `/map/markers` | 公开 | Query | 点位对象数组 |
 | 媒体 | GET | `/media/{mediaId}` | 公开 | Path | 媒体详情对象 |
 | 媒体 | POST | `/media/{mediaId}/views` | 公开 | Path | 媒体互动状态对象 |
@@ -133,6 +135,8 @@ token: <accessToken>
 | 媒体 | POST | `/media/{mediaId}/favorites` | 登录 | 可选 JSON | 媒体互动状态对象 |
 | 媒体 | DELETE | `/media/{mediaId}/favorites` | 登录 | Path | 媒体互动状态对象 |
 | 媒体 | POST | `/media/{mediaId}/downloads` | 登录 | Path | 下载信息对象 |
+| 媒体 | POST | `/media/{mediaId}/downloads/ticket` | 登录 | Path | 下载票据字符串 |
+| 媒体 | GET | `/media/downloads/stream` | 公开 | Query | 图片文件二进制流 |
 | 媒体 | GET | `/media/{mediaId}/related` | 公开 | Query | 媒体摘要对象数组 |
 | 举报 | GET | `/reports/reasons` | 公开 | - | 举报理由对象数组 |
 | 举报 | POST | `/reports/media` | 登录 | JSON | 媒体举报提交结果对象 |
@@ -143,12 +147,16 @@ token: <accessToken>
 | 话题 | GET | `/topics` | 公开 | - | 话题摘要对象数组 |
 | 话题 | GET | `/topics/{topicId}` | 公开 | Path | 话题详情对象 |
 | 话题 | GET | `/topics/{topicId}/media` | 公开 | Query | 媒体摘要分页对象 |
+| 话题 | POST | `/topics/{topicId}/favorites` | 登录 | Path | 话题收藏状态对象 |
+| 话题 | DELETE | `/topics/{topicId}/favorites` | 登录 | Path | 话题收藏状态对象 |
 | 收藏夹 | GET | `/favorite-folders` | 登录 | - | 收藏夹对象数组 |
 | 收藏夹 | POST | `/favorite-folders` | 登录 | JSON | 收藏夹对象 |
 | 收藏夹 | PATCH | `/favorite-folders/{folderId}` | 登录 | JSON | 收藏夹对象 |
 | 收藏夹 | DELETE | `/favorite-folders/{folderId}` | 登录 | Path | `null` |
 | 收藏夹 | GET | `/favorite-folders/{folderId}/items` | 登录 | Query | 媒体摘要分页对象 |
 | 收藏 | POST | `/favorites/batch` | 登录 | JSON | 批量收藏结果对象 |
+| 收藏 | GET | `/favorites/locations` | 登录 | Query | 收藏地点分页对象 |
+| 收藏 | GET | `/favorites/topics` | 登录 | Query | 收藏话题分页对象 |
 | 时光对比 | GET | `/time-comparisons` | 登录 | Query | 时光对比摘要对象数组 |
 | 时光对比 | GET | `/time-comparisons/{comparisonId}` | 登录 | Path | 时光对比详情对象 |
 | 投稿 | POST | `/submissions` | 登录 | Multipart | 投稿详情对象 |
@@ -619,6 +627,8 @@ GET /locations/{locationId}
 | `data.latitude` | number | 是 | 纬度 |
 | `data.coverUrl` | string | 是 | 由地点 `coverKey` 生成的 10 分钟预签名封面 URL |
 | `data.description` | string | 是 | 地点描述 |
+| `data.favoriteCount` | number | 否 | 地点收藏数 |
+| `data.favorited` | boolean | 否 | 当前正式登录用户是否已收藏；未登录或非正式账号为 `false` |
 
 JSON 响应示例：
 
@@ -638,7 +648,9 @@ JSON 响应示例：
     "longitude": 117.0618,
     "latitude": 36.6745,
     "coverUrl": "https://r2.example.com/locations/zhixin.jpg?X-Amz-Signature=...",
-    "description": "教学与科研建筑"
+    "description": "教学与科研建筑",
+    "favoriteCount": 12,
+    "favorited": true
   },
   "timestamp": 1786773600000
 }
@@ -1079,7 +1091,97 @@ JSON 响应示例：
 
 成功调用会写下载记录并增加下载次数。主要错误：`13000`、`13200`、`14000`。
 
-### 5.8 相关媒体
+### 5.8 获取原图下载票据
+
+```http
+POST /media/{mediaId}/downloads/ticket
+token: <accessToken>
+```
+
+权限：登录，且服务层要求正式正常用户和 `allowDownload === true`。无请求体。
+
+该接口用于同源流式下载前置取票。后端会校验媒体存在且可见，生成一个短期、一次性下载票据，并将票据摘要作为 Redis key、将 `userId`、`mediaId`、`objectKey` 等下载上下文保存为 JSON。当前票据有效期由 `vsdu.media.ticket-expire-seconds` 配置，默认 `300` 秒。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data` | string | 否 | 下载票据原文；前端只应短期持有，立即用于 5.9 节接口 |
+
+JSON 响应示例：
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": "gA0lYtD2s0VQFJ1lPV9_CkP35cW2Gu0R",
+  "timestamp": 1786773600000
+}
+```
+
+取票成功本身不写下载记录，也不增加下载次数；实际下载记录在票据被 5.9 节接口成功消费时写入。
+
+主要错误：`13000`、`13200`、`14000`。
+
+### 5.9 流式下载原图文件
+
+```http
+GET /media/downloads/stream?ticket=<downloadTicket>
+```
+
+权限：公开。该接口不依赖 `token` 请求头，鉴权信息来自一次性下载票据，因此可用于浏览器直接打开 URL 触发下载。
+
+Query 参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---:|---:|---|
+| `ticket` | string | 是 | 由 5.8 节接口返回的短期一次性下载票据 |
+
+处理规则：
+
+- 后端使用 Redis `GETDEL` 原子消费票据；票据不存在、过期或已使用时返回业务错误。
+- 票据消费后，后端根据票据中的 `userId` 重新校验用户仍为正式正常用户，且仍具有原图下载权限。
+- 后端根据票据中的 `mediaId` 查询媒体，要求媒体仍存在且可见。
+- 后端校验票据中的 `objectKey` 与当前媒体 `objectKey` 一致，避免票据被挪用或媒体文件变化后继续下载旧对象。
+- 校验通过后，后端记录下载审计并增加媒体下载次数，再从 R2 拉取对象流并返回给浏览器。
+
+成功响应不是统一 JSON，而是图片文件二进制流。典型响应头如下：
+
+```http
+HTTP/1.1 200 OK
+Content-Type: image/jpeg
+Content-Length: 2458123
+Content-Disposition: attachment; filename*=UTF-8''zhixinlou-501.jpg
+Cache-Control: no-cache
+
+<图片二进制内容>
+```
+
+响应说明：
+
+| 内容 | 说明 |
+|---|---|
+| 响应体 | 原图文件二进制流 |
+| `Content-Type` | R2 对象元数据中的 MIME 类型，例如 `image/jpeg`、`image/png`、`image/webp` |
+| `Content-Length` | R2 对象元数据中的文件大小 |
+| `Content-Disposition` | `attachment` 下载响应头，文件名由媒体标题清洗后拼接媒体 ID 和扩展名生成 |
+
+错误响应仍使用项目统一 JSON 响应体。
+
+主要错误：`13291` 下载票据无效或已过期、`13200` 无原图下载权限、`13000` 媒体不存在或不可见、`14000` 用户不是正式正常用户。
+
+前端推荐流程：
+
+```js
+const ticketResponse = await request.post(`/media/${mediaId}/downloads/ticket`)
+const ticket = ticketResponse.data
+
+const a = document.createElement('a')
+a.href = `/media/downloads/stream?ticket=${encodeURIComponent(ticket)}`
+a.click()
+```
+
+### 5.10 相关媒体
 
 ```http
 GET /media/{mediaId}/related?size=12
@@ -3203,6 +3305,8 @@ GET /topics
 | `data[].description` | string | 是 | 话题描述 |
 | `data[].coverUrl` | string | 是 | 话题封面地址 |
 | `data[].mediaCount` | number | 否 | 话题下可见媒体数 |
+| `data[].favoriteCount` | number | 否 | 话题收藏数 |
+| `data[].favorited` | boolean | 否 | 当前正式登录用户是否已收藏；未登录或非正式账号为 `false` |
 
 JSON 响应示例：
 
@@ -3217,7 +3321,9 @@ JSON 响应示例：
       "slug": "sdu-seasons",
       "description": "记录校园四季",
       "coverUrl": "https://example.com/topics/seasons.jpg",
-      "mediaCount": 36
+      "mediaCount": 36,
+      "favoriteCount": 23,
+      "favorited": true
     }
   ],
   "timestamp": 1786860000000
@@ -3242,6 +3348,8 @@ GET /topics/{topicId}
 | `data.description` | string | 是 | 话题描述 |
 | `data.coverUrl` | string | 是 | 话题封面地址 |
 | `data.mediaCount` | number | 否 | 话题下可见媒体数 |
+| `data.favoriteCount` | number | 否 | 话题收藏数 |
+| `data.favorited` | boolean | 否 | 当前正式登录用户是否已收藏；未登录或非正式账号为 `false` |
 | `data.createdAt` | string | 是 | 创建时间，ISO LocalDateTime |
 | `data.updatedAt` | string | 是 | 更新时间，ISO LocalDateTime |
 
@@ -3258,6 +3366,8 @@ JSON 响应示例：
     "description": "记录校园四季",
     "coverUrl": "https://example.com/topics/seasons.jpg",
     "mediaCount": 36,
+    "favoriteCount": 23,
+    "favorited": true,
     "createdAt": "2026-08-01T09:00:00",
     "updatedAt": "2026-08-15T10:00:00"
   },
@@ -3333,7 +3443,7 @@ JSON 响应示例：
 
 ## 11. 个人收藏夹与批量收藏
 
-本节接口均要求有效 access token。当前服务只检查登录状态，没有像单媒体点赞/收藏接口那样额外检查是否为统一认证正式用户。
+本节接口均要求有效 access token。收藏夹与批量媒体收藏当前只检查登录状态；地点和话题收藏要求当前账号为统一认证正式用户。
 
 收藏夹封面 URL 和收藏夹内容中的缩略图 URL 均为短期预签名地址。未手动设置封面时，后端会使用收藏夹中最近收藏的一条可见媒体作为封面。
 
@@ -3623,7 +3733,93 @@ JSON 响应示例：
 
 主要错误：`13100` 收藏夹不存在或无权访问，以及路径/分页参数校验错误。
 
-### 11.6 批量管理收藏
+### 11.6 收藏地点
+
+```http
+POST /locations/{locationId}/favorites
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。路径参数 `locationId` 必须为正数，地点及其所属校区、城市必须启用。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.locationId` | number | 否 | 地点 ID |
+| `data.favoriteCount` | number | 否 | 收藏后的地点收藏数 |
+| `data.favorited` | boolean | 否 | 收藏成功后为 `true` |
+
+主要错误：`12200` 地点不存在或已停用、`14000` 仅统一认证正式用户可用、`13107` 已收藏过该内容。
+
+### 11.7 取消收藏地点
+
+```http
+DELETE /locations/{locationId}/favorites
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。取消当前用户对指定地点的收藏。
+
+响应字段同收藏地点，取消成功后 `favorited` 为 `false`。
+
+主要错误：`12200` 地点不存在或已停用、`14000` 仅统一认证正式用户可用、`13108` 尚未收藏该内容。
+
+### 11.8 收藏话题
+
+```http
+POST /topics/{topicId}/favorites
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。路径参数 `topicId` 必须为正数，话题必须启用。
+
+响应 `data` 字段：
+
+| 字段路径 | JSON 类型 | 可能为 `null` | 说明 |
+|---|---|---:|---|
+| `data.topicId` | number | 否 | 话题 ID |
+| `data.favoriteCount` | number | 否 | 收藏后的话题收藏数 |
+| `data.favorited` | boolean | 否 | 收藏成功后为 `true` |
+
+主要错误：`15100` 话题不存在或已停用、`14000` 仅统一认证正式用户可用、`13107` 已收藏过该内容。
+
+### 11.9 取消收藏话题
+
+```http
+DELETE /topics/{topicId}/favorites
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。取消当前用户对指定话题的收藏。
+
+响应字段同收藏话题，取消成功后 `favorited` 为 `false`。
+
+主要错误：`15100` 话题不存在或已停用、`14000` 仅统一认证正式用户可用、`13108` 尚未收藏该内容。
+
+### 11.10 收藏地点列表
+
+```http
+GET /favorites/locations?page=1&size=20
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。只返回当前仍启用且所属校区、城市也启用的地点，按收藏时间倒序排列。
+
+响应为 `PageResult<LocationListVO>`，地点条目包含 `favoriteCount` 和 `favorited`，其中 `favorited` 恒为 `true`。
+
+### 11.11 收藏话题列表
+
+```http
+GET /favorites/topics?page=1&size=20
+token: <accessToken>
+```
+
+权限：登录，且服务层要求统一认证正式用户。只返回当前仍启用的话题，按收藏时间倒序排列。
+
+响应为 `PageResult<TopicSummaryVO>`，话题条目包含 `favoriteCount` 和 `favorited`，其中 `favorited` 恒为 `true`。
+
+### 11.12 批量管理收藏
 
 ```http
 POST /favorites/batch
@@ -4888,6 +5084,7 @@ JSON 响应示例：
 | 400 | `13105` | 批量添加或移动收藏时必须指定目标收藏夹 |
 | 400 | `13106` | 封面媒体不在当前收藏夹中 |
 | 403 | `13200` | 当前账号无原图下载权限 |
+| 400 | `13291` | 下载票据无效或已过期 |
 | 404 | `13300` | 时光对比不存在或不可见 |
 
 ### 15.4 投稿与上传
@@ -5008,7 +5205,8 @@ JSON 响应示例：
 - 枚举传英文大写名称；投稿状态使用 `PENDING/APPROVED/RETURNED/WITHDRAWN/REJECTED`，审核决定使用 `APPROVE/RETURN/REJECT`。
 - 投稿使用多值 FormData 字段；创建投稿传 `tagIds`，修改投稿当前仍传 `tags`，文件均传 `files`；不手动写 multipart boundary。
 - 头像使用字段名为 `file` 的 FormData 上传；限制为 PNG、JPEG、WebP 和 5 MiB。
-- 预签名 URL（包括媒体、投稿预览、头像和下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
+- 预签名 URL（包括媒体、投稿预览、头像和旧版下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
+- 浏览器按钮下载原图推荐先调用 `/media/{mediaId}/downloads/ticket` 取票，再打开 `/media/downloads/stream?ticket=...`；流式下载响应是文件二进制，不是统一 JSON。
 - 修改密码成功后立即清除本地 access token 和 refresh token，并引导用户重新登录。
 - 浏览足迹的 `size` 最大按 50 返回；清空和单条删除均按幂等成功处理。
 - 搜索排序值使用 `relevance`、`newest`、`oldest`、`hot`；搜索建议的 `TAG` 类型没有 ID。

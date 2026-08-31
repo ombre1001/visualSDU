@@ -9,6 +9,8 @@ public record TopicDetailVO(
         String description,
         String coverUrl,
         long mediaCount,
+        long favoriteCount,
+        boolean favorited,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

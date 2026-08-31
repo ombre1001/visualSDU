@@ -32,6 +32,7 @@ public class LocationService {
     private final LocationMapper locationMapper;
     private final MediaMapper mediaMapper;
     private final MediaService mediaService;
+    private final UserFavoriteTargetService favoriteTargetService;
     private final FileStorage fileStorage;
 
     /**
@@ -55,9 +56,11 @@ public class LocationService {
                         .orderByAsc(Location::getSortOrder)
                         .orderByAsc(Location::getId);
 
+        Long userId = favoriteTargetService.currentFormalUserIdOrNull();
+
         return locationMapper.selectList(queryWrapper)
                 .stream()
-                .map(this::convertToListVO)
+                .map(location -> convertToListVO(location, userId))
                 .toList();
     }
 
@@ -68,6 +71,7 @@ public class LocationService {
         Location location = requireEnabledLocation(locationId);
         Campus campus = requireEnabledCampus(location.getCampusId());
         City city = requireEnabledCity(campus.getCityId());
+        Long userId = favoriteTargetService.currentFormalUserIdOrNull();
 
         return LocationDetailVO.builder()
                 .id(location.getId())
@@ -82,6 +86,8 @@ public class LocationService {
                 .latitude(location.getLatitude())
                 .coverUrl(url(location.getCoverKey()))
                 .description(location.getDescription())
+                .favoriteCount(favoriteTargetService.countLocationFavorites(location.getId()))
+                .favorited(favoriteTargetService.isLocationFavorited(userId, location.getId()))
                 .build();
     }
 
@@ -187,7 +193,7 @@ public class LocationService {
         return city;
     }
 
-    private LocationListVO convertToListVO(Location location) {
+    private LocationListVO convertToListVO(Location location, Long userId) {
         return LocationListVO.builder()
                 .id(location.getId())
                 .campusId(location.getCampusId())
@@ -197,6 +203,8 @@ public class LocationService {
                 .longitude(location.getLongitude())
                 .latitude(location.getLatitude())
                 .coverUrl(url(location.getCoverKey()))
+                .favoriteCount(favoriteTargetService.countLocationFavorites(location.getId()))
+                .favorited(favoriteTargetService.isLocationFavorited(userId, location.getId()))
                 .build();
     }
 

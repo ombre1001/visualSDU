@@ -32,5 +32,9 @@ public class LocationDetailVO {
     private String coverUrl;
 
     private String description;
+
+    private long favoriteCount;
+
+    private boolean favorited;
 }
 

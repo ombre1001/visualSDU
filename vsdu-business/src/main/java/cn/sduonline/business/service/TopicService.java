@@ -25,11 +25,13 @@ public class TopicService {
     private final TopicMapper topicMapper;
     private final TopicMediaMapper topicMediaMapper;
     private final MediaService mediaService;
+    private final UserFavoriteTargetService favoriteTargetService;
 
     public List<TopicSummaryVO> list() {
+        Long userId = favoriteTargetService.currentFormalUserIdOrNull();
         return topicMapper.selectEnabledSummaries()
                 .stream()
-                .map(this::toSummary)
+                .map(topic -> toSummary(topic, userId))
                 .toList();
     }
 
@@ -37,6 +39,7 @@ public class TopicService {
         Topic topic = requireEnabled(topicId);
         long mediaCount =
                 topicMediaMapper.countVisibleMedia(topic.getId());
+        Long userId = favoriteTargetService.currentFormalUserIdOrNull();
 
         return new TopicDetailVO(
                 topic.getId(),
@@ -45,6 +48,8 @@ public class TopicService {
                 topic.getDescription(),
                 topic.getCoverUrl(),
                 mediaCount,
+                favoriteTargetService.countTopicFavorites(topic.getId()),
+                favoriteTargetService.isTopicFavorited(userId, topic.getId()),
                 topic.getCreatedAt(),
                 topic.getUpdatedAt()
         );
@@ -91,10 +96,12 @@ public class TopicService {
         );
     }
 
-    private TopicSummaryVO toSummary(TopicSummaryRow topic) {
+    private TopicSummaryVO toSummary(TopicSummaryRow topic, Long userId) {
         return new TopicSummaryVO(
                 topic.getId(), topic.getName(), topic.getSlug(), topic.getDescription(),
-                topic.getCoverUrl(), topic.getMediaCount()
+                topic.getCoverUrl(), topic.getMediaCount(),
+                favoriteTargetService.countTopicFavorites(topic.getId()),
+                favoriteTargetService.isTopicFavorited(userId, topic.getId())
         );
     }
 

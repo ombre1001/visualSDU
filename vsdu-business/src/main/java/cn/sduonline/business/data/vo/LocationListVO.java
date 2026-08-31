@@ -24,4 +24,8 @@ public class LocationListVO {
     private BigDecimal latitude;
 
     private String coverUrl;
+
+    private long favoriteCount;
+
+    private boolean favorited;
 }
