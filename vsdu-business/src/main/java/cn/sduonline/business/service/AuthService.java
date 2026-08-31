@@ -107,6 +107,7 @@ public class AuthService {
         User u = userMapper.selectById(userId);
 
         frozenUserCheck(u);
+        userMapper.loginRecord(userId);
 
         var localJwtPayload = LocalJwtPayload.builder()
                 .userId(u.getId())
