@@ -32,9 +32,6 @@ vsdu:
       refresh-token-expire-seconds: 604800
       login-ticket-expire-seconds: 120
 
-  auth:
-    frontend-return-url: http://localhost:5173/auth/return
-
   media:
     ticket-expire-seconds: 300
 

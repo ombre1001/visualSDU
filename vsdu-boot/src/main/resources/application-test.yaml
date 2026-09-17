@@ -14,3 +14,7 @@ spring:
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+vsdu:
+  auth:
+    frontend-return-url: http://localhost:5173/auth/return
