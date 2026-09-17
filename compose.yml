@@ -8,10 +8,10 @@ services:
     restart: unless-stopped
 
     env_file:
-      - .env.test
+      - .env
 
     environment:
-      SPRING_PROFILES_ACTIVE: test
+      SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
 
@@ -67,18 +67,6 @@ services:
 
     volumes:
       - redis-data:/data
-
-  frpc:
-    image: snowdreamtech/frpc:latest
-    container_name: visual-sdu-frpc
-    restart: unless-stopped
-
-    volumes:
-      - ./frpc.toml:/etc/frp/frpc.toml:ro
-
-    depends_on:
-      - app
-
 
 volumes:
   mysql-data:
