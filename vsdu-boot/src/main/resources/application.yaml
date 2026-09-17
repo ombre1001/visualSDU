@@ -48,3 +48,8 @@ cloudflare:
     access-key-id: ${R2_ACCESS_KEY_ID}
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
     bucket: vsdu-bucket
+
+aliyun:
+  cdn:
+    domain: https://img.sentiexception.com
+    private-key: ${ALIYUN_CDN_PRIVATE_KEY}

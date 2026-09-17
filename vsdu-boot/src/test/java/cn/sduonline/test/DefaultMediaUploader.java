@@ -4,7 +4,6 @@ import cn.sduonline.VisualSduApplication;
 import cn.sduonline.infrastructure.file.model.UploadFile;
 import cn.sduonline.infrastructure.file.storage.FileStorage;
 import jakarta.annotation.Resource;
-import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -40,10 +39,10 @@ public class DefaultMediaUploader {
         System.out.println(fileStorage.getUrl(objectKey));
     }
 
-    private static final File defaultAvatar = new File("C:\\Users\\Sentimental\\Desktop\\视觉山大！\\default.png");
+    private static final File defaultAvatar = new File("D:\\resources\\dssm\\default.png");
     private static final String defaultAvatarKey = "avatars/default.png";
 
-    @Test
+//    @Test
     public void uploadDefaultMedia() {
         localMediaUpload(defaultAvatar, defaultAvatarKey, "image/png");
     }

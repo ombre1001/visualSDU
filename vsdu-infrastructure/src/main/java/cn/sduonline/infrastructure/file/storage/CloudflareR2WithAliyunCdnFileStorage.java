@@ -1,5 +1,6 @@
 package cn.sduonline.infrastructure.file.storage;
 
+import cn.sduonline.infrastructure.cdn.AliyunCdnClient;
 import cn.sduonline.infrastructure.file.exception.FileStorageException;
 import cn.sduonline.infrastructure.file.model.DownloadFile;
 import cn.sduonline.infrastructure.file.model.UploadFile;
@@ -11,9 +12,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Slf4j
 @RequiredArgsConstructor
-public class CloudflareR2FileStorage implements FileStorage{
+public class CloudflareR2WithAliyunCdnFileStorage implements FileStorage{
 
     private final CloudflareR2Client r2Client;
+    private final AliyunCdnClient aliyunCdnClient;
 
     @Override
     public void storage(UploadFile uploadFile) throws FileStorageException {
@@ -48,9 +50,16 @@ public class CloudflareR2FileStorage implements FileStorage{
         }
     }
 
+/*
+    已弃用：使用AWS Api生成图片访问URL，应用Aliyun CDN访问URL代替。
     @Override
     public String getUrl(String objectKey) {
         return r2Client.generatePresignedUrl(objectKey);
+    }*/
+
+    @Override
+    public String getUrl(String objectKey) {
+        return aliyunCdnClient.generateCdnUrl(objectKey);
     }
 
     @Override

@@ -153,6 +153,9 @@ public class CloudflareR2Client {
         );
     }
 
+    /**
+     * 生成AWS API预签名URL
+     */
     public String generatePresignedUrl(String objectKey) throws S3Exception {
         if (objectKey == null || objectKey.isBlank()) {
             throw new IllegalArgumentException("R2对象键不能为空");
