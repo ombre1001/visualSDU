@@ -1,9 +1,9 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://8.130.108.118:3306/vsdu-db
-    username: ${MYSQL_USERNAME}
-    password: ${MYSQL_PASSWORD}
+    url: jdbc:mysql://localhost:3306/vsdu-db
+    username: root
+    password: ${LOCAL_MYSQL_PASSWORD}
 
   data:
     redis:
@@ -14,4 +14,8 @@ spring:
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+vsdu:
+  auth:
+    frontend-return-url: https://localhost:5173/auth/return
 

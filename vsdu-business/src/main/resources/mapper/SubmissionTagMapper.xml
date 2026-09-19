@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.SubmissionTagMapper">
+
+    <select id="selectBySubmissionId" resultType="cn.sduonline.business.data.po.SubmissionTag">
+        SELECT submission_id, tag_id, sort_order, created_at
+        FROM submission_tag
+        WHERE submission_id = #{submissionId}
+        ORDER BY sort_order, tag_id
+    </select>
+
+    <select id="selectBySubmissionIds" resultType="cn.sduonline.business.data.po.SubmissionTag">
+        SELECT submission_id, tag_id, sort_order, created_at
+        FROM submission_tag
+        WHERE submission_id IN
+        <foreach collection="submissionIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY submission_id, sort_order, tag_id
+    </select>
+
+    <select id="selectSubmissionIdsByTagId" resultType="long">
+        SELECT submission_id
+        FROM submission_tag
+        WHERE tag_id = #{tagId}
+        ORDER BY submission_id
+    </select>
+
+    <select id="selectBySubmissionIdsForUpdate" resultType="cn.sduonline.business.data.po.SubmissionTag">
+        SELECT submission_id, tag_id, sort_order, created_at
+        FROM submission_tag
+        WHERE submission_id IN
+        <foreach collection="submissionIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY submission_id, sort_order, tag_id
+        FOR UPDATE
+    </select>
+
+    <insert id="insertBatch">
+        INSERT INTO submission_tag (submission_id, tag_id, sort_order)
+        VALUES
+        <foreach collection="relations" item="relation" separator=",">
+            (#{relation.submissionId}, #{relation.tagId}, #{relation.sortOrder})
+        </foreach>
+    </insert>
+
+    <delete id="deleteBySubmissionId">
+        DELETE FROM submission_tag WHERE submission_id = #{submissionId}
+    </delete>
+
+    <delete id="deleteBySubmissionIds">
+        DELETE FROM submission_tag
+        WHERE submission_id IN
+        <foreach collection="submissionIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByTagId">
+        DELETE FROM submission_tag WHERE tag_id = #{tagId}
+    </delete>
+
+    <select id="countByTagId" resultType="long">
+        SELECT COUNT(*) FROM submission_tag WHERE tag_id = #{tagId}
+    </select>
+
+</mapper>

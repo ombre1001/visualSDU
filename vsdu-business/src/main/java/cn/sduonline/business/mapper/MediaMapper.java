@@ -2,7 +2,6 @@ package cn.sduonline.business.mapper;
 
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.projection.MediaSummaryRow;
-import cn.sduonline.business.data.projection.MediaTagPatch;
 import cn.sduonline.business.data.projection.SearchSuggestionRow;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
@@ -23,7 +22,7 @@ public interface MediaMapper extends BaseMapper<Media> {
     List<MediaSummaryRow> selectRelatedMedia(
             @Param("sourceId") Long sourceId,
             @Param("locationId") Long locationId,
-            @Param("tag") String tag,
+            @Param("tagId") Long tagId,
             @Param("limit") int limit
     );
 
@@ -49,14 +48,7 @@ public interface MediaMapper extends BaseMapper<Media> {
             @Param("size") long size
     );
 
-    List<Media> selectByExactTag(@Param("tag") String tag);
-
     Media selectByIdForUpdate(@Param("mediaId") Long mediaId);
-
-    int batchUpdateTags(
-            @Param("patches") List<MediaTagPatch> patches,
-            @Param("updatedAt") LocalDateTime updatedAt
-    );
 
     @Update("UPDATE media SET view_count = view_count + 1 WHERE id = #{mediaId} AND status = 1")
     void increaseViewCount(@Param("mediaId") Long mediaId);

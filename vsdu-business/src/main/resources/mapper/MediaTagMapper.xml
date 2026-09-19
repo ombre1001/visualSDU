@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.sduonline.business.mapper.MediaTagMapper">
+
+    <select id="selectByMediaId" resultType="cn.sduonline.business.data.po.MediaTag">
+        SELECT media_id, tag_id, sort_order, created_at
+        FROM media_tag
+        WHERE media_id = #{mediaId}
+        ORDER BY sort_order, tag_id
+    </select>
+
+    <select id="selectByMediaIds" resultType="cn.sduonline.business.data.po.MediaTag">
+        SELECT media_id, tag_id, sort_order, created_at
+        FROM media_tag
+        WHERE media_id IN
+        <foreach collection="mediaIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY media_id, sort_order, tag_id
+    </select>
+
+    <select id="selectMediaIdsByTagId" resultType="long">
+        SELECT media_id
+        FROM media_tag
+        WHERE tag_id = #{tagId}
+        ORDER BY media_id
+    </select>
+
+    <select id="selectByMediaIdsForUpdate" resultType="cn.sduonline.business.data.po.MediaTag">
+        SELECT media_id, tag_id, sort_order, created_at
+        FROM media_tag
+        WHERE media_id IN
+        <foreach collection="mediaIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY media_id, sort_order, tag_id
+        FOR UPDATE
+    </select>
+
+    <insert id="insertBatch">
+        INSERT INTO media_tag (media_id, tag_id, sort_order)
+        VALUES
+        <foreach collection="relations" item="relation" separator=",">
+            (#{relation.mediaId}, #{relation.tagId}, #{relation.sortOrder})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByMediaId">
+        DELETE FROM media_tag WHERE media_id = #{mediaId}
+    </delete>
+
+    <delete id="deleteByMediaIds">
+        DELETE FROM media_tag
+        WHERE media_id IN
+        <foreach collection="mediaIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="countByTagId" resultType="long">
+        SELECT COUNT(*) FROM media_tag WHERE tag_id = #{tagId}
+    </select>
+
+    <select id="selectFirstTagId" resultType="long">
+        SELECT tag_id
+        FROM media_tag
+        WHERE media_id = #{mediaId}
+          AND sort_order = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectPopularTags"
+            resultType="cn.sduonline.business.data.projection.PopularTagStatRow">
+        SELECT t.id,
+               t.name,
+               COUNT(*) AS media_count
+        FROM media m
+        INNER JOIN location l ON l.id = m.location_id AND l.status = 1
+        INNER JOIN campus c ON c.id = l.campus_id AND c.status = 1
+        INNER JOIN city ci ON ci.id = c.city_id AND ci.status = 1
+        INNER JOIN media_tag mt ON mt.media_id = m.id
+        INNER JOIN tag t ON t.id = mt.tag_id
+        WHERE m.status = 1
+        <if test="cityId != null">
+            AND ci.id = #{cityId}
+        </if>
+        GROUP BY t.id, t.name
+        ORDER BY media_count DESC, t.name, t.id
+        LIMIT #{tagLimit}
+    </select>
+
+    <delete id="deleteByTagId">
+        DELETE FROM media_tag WHERE tag_id = #{tagId}
+    </delete>
+
+</mapper>

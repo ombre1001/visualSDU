@@ -14,7 +14,7 @@ public record MediaDetailVO(
         String imageUrl,
         String thumbnailUrl,
         LocalDateTime shotAt,
-        List<String> tags,
+        List<TagVO> tags,
         long viewCount,
         long likeCount,
         long favoriteCount,

@@ -20,7 +20,6 @@ public class Media {
     private String title;
     private String description;
     private LocalDateTime shotAt;
-    private String tags;
     private Integer status;
     private Long viewCount;
     private Long likeCount;

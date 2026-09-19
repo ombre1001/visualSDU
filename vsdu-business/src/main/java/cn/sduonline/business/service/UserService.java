@@ -8,6 +8,7 @@ import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.po.UserBrowseHistory;
 import cn.sduonline.business.data.vo.BrowseHistoryVO;
+import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.data.vo.UserProfileVO;
 import cn.sduonline.business.mapper.MediaMapper;
 import cn.sduonline.business.mapper.UserBrowseHistoryMapper;
@@ -30,8 +31,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -195,10 +200,24 @@ public class UserService {
             return new PageResult<>(total, safePage, safeSize, List.of());
         }
 
-        List<BrowseHistoryVO> items = historyMapper.selectVisiblePage(userId, offset, safeSize)
+        List<UserBrowseHistory> histories = historyMapper.selectVisiblePage(userId, offset, safeSize);
+        List<Long> mediaIds = histories.stream().map(UserBrowseHistory::getMediaId).toList();
+        Map<Long, Media> mediaById = mediaIds.isEmpty()
+                ? Map.of()
+                : mediaMapper.selectByIds(new LinkedHashSet<>(mediaIds)).stream()
+                .filter(media -> Objects.equals(media.getStatus(), 1))
+                .collect(Collectors.toMap(Media::getId, Function.identity()));
+        Map<Long, MediaSummaryVO> summariesById = mediaService
+                .toMediaSummaries(mediaIds.stream().map(mediaById::get).filter(Objects::nonNull).toList())
                 .stream()
-                .map(this::toHistory)
-                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(MediaSummaryVO::id, Function.identity()));
+        List<BrowseHistoryVO> items = histories.stream()
+                .filter(history -> summariesById.containsKey(history.getMediaId()))
+                .map(history -> new BrowseHistoryVO(
+                        summariesById.get(history.getMediaId()),
+                        Objects.requireNonNullElse(history.getViewCount(), 0L),
+                        history.getLastViewedAt()
+                ))
                 .toList();
         return new PageResult<>(total, safePage, safeSize, items);
     }
@@ -242,16 +261,6 @@ public class UserService {
                 user.getNickname(), avatarUrl, user.getBio(), user.getRole(), user.getStatus(),
                 Boolean.TRUE.equals(user.getAllowUpload()), Boolean.TRUE.equals(user.getAllowDownload()),
                 hasText(user.getPasswordHash()), user.getLastLoginAt(), user.getCreatedAt(), user.getUpdatedAt()
-        );
-    }
-
-    private BrowseHistoryVO toHistory(UserBrowseHistory history) {
-        Media media = mediaMapper.selectById(history.getMediaId());
-        if (media == null || !Objects.equals(media.getStatus(), 1)) return null;
-        return new BrowseHistoryVO(
-                mediaService.toSummary(media),
-                Objects.requireNonNullElse(history.getViewCount(), 0L),
-                history.getLastViewedAt()
         );
     }
 

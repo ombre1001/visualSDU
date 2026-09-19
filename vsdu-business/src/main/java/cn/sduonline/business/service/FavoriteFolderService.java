@@ -25,7 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -185,19 +188,19 @@ public class FavoriteFolderService {
 
         long total = favoriteMapper.countVisibleByFolder(userId, folderId);
 
-        List<MediaSummaryVO> items =
-                favoriteMapper.selectVisibleMediaIds(
-                                userId,
-                                folderId,
-                                offset,
-                                safeSize
-                        )
-                        .stream()
-                        .map(mediaMapper::selectById)
-                        .filter(Objects::nonNull)
-                        .filter(media -> media.getStatus() == VISIBLE)
-                        .map(mediaService::toSummary)
-                        .toList();
+        List<Long> mediaIds = favoriteMapper.selectVisibleMediaIds(
+                userId, folderId, offset, safeSize
+        );
+        Map<Long, Media> mediaById = mediaIds.isEmpty()
+                ? Map.of()
+                : mediaMapper.selectByIds(new LinkedHashSet<>(mediaIds)).stream()
+                .collect(Collectors.toMap(Media::getId, Function.identity()));
+        List<Media> media = mediaIds.stream()
+                .map(mediaById::get)
+                .filter(Objects::nonNull)
+                .filter(item -> item.getStatus() == VISIBLE)
+                .toList();
+        List<MediaSummaryVO> items = mediaService.toMediaSummaries(media);
 
         return new PageResult<>(
                 total,
@@ -557,7 +560,7 @@ public class FavoriteFolderService {
             return null;
         }
 
-        return mediaService.toSummary(media).thumbnailUrl();
+        return mediaService.thumbnailUrl(media);
     }
 
     private String normalizeRequiredName(String value) {

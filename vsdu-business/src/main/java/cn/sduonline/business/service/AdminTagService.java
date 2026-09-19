@@ -1,12 +1,10 @@
 package cn.sduonline.business.service;
 
-import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Tag;
-import cn.sduonline.business.data.projection.MediaTagPatch;
 import cn.sduonline.business.data.vo.AdminTagVO;
-import cn.sduonline.business.mapper.MediaMapper;
+import cn.sduonline.business.mapper.MediaTagMapper;
+import cn.sduonline.business.mapper.SubmissionTagMapper;
 import cn.sduonline.business.mapper.TagMapper;
-import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -15,15 +13,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class AdminTagService {
     private final TagMapper tagMapper;
-    private final MediaMapper mediaMapper;
+    private final MediaTagMapper mediaTagMapper;
+    private final SubmissionTagMapper submissionTagMapper;
+    private final TagRelationService tagRelationService;
 
     public List<AdminTagVO> list(String keyword) {
         String q = text(keyword) ? keyword.strip() : null;
@@ -50,48 +50,38 @@ public class AdminTagService {
     public AdminTagVO update(Long tagId, String rawName) {
         Tag tag = requireTag(tagId);
         String name = normalizeName(rawName);
-        if (Objects.equals(tag.getName(), name)) return toVO(tag, countMedia(loadMedia(tag.getName()), tag.getName()));
+        if (Objects.equals(tag.getName(), name)) return toVO(tag, mediaTagMapper.countByTagId(tagId));
         requireUnique(name, tagId);
-        replaceMediaTag(tag.getName(), name);
         tag.setName(name); tag.setUpdatedAt(LocalDateTime.now());
         tagMapper.updateById(tag);
-        return toVO(tag, countMedia(loadMedia(name), name));
+        return toVO(tag, mediaTagMapper.countByTagId(tagId));
     }
 
     @Transactional
-    public void mergeOrDelete(Long sourceTagId, Long targetTagId) {
-        Tag source = requireTag(sourceTagId);
-        String targetName = null;
-        if (targetTagId != null) {
-            if (Objects.equals(sourceTagId, targetTagId)) throw new BizException(BizCode.ADMIN_TAG_MERGE_SELF);
-            targetName = requireTag(targetTagId).getName();
+    public void merge(Long sourceTagId, Long targetTagId) {
+        if (Objects.equals(sourceTagId, targetTagId)) {
+            throw new BizException(BizCode.ADMIN_TAG_MERGE_SELF);
         }
-        replaceMediaTag(source.getName(), targetName);
+        List<Long> tagIds = Stream.of(sourceTagId, targetTagId).sorted().toList();
+        if (tagMapper.selectByIdsForUpdate(tagIds).size() != 2) {
+            throw new BizException(BizCode.ADMIN_TAG_NOT_FOUND);
+        }
+        tagRelationService.mergeTag(sourceTagId, targetTagId);
         tagMapper.deleteById(sourceTagId);
     }
 
-    private void replaceMediaTag(String source, String target) {
-        List<MediaTagPatch> patches = new ArrayList<>();
-        for (Media media : loadMedia(source)) {
-            List<String> oldTags = TagCodec.decode(media.getTags());
-            if (!oldTags.contains(source)) continue;
-            List<String> updated = new ArrayList<>();
-            for (String tag : oldTags) {
-                String value = Objects.equals(tag, source) ? target : tag;
-                if (text(value) && !updated.contains(value)) updated.add(value);
-            }
-            String encoded = TagCodec.encode(updated);
-            patches.add(new MediaTagPatch(media.getId(), encoded));
+    @Transactional
+    public void delete(Long tagId, boolean force) {
+        if (tagMapper.selectByIdsForUpdate(List.of(tagId)).isEmpty()) {
+            throw new BizException(BizCode.ADMIN_TAG_NOT_FOUND);
         }
-        if (!patches.isEmpty()) mediaMapper.batchUpdateTags(patches, LocalDateTime.now());
-    }
-
-    private List<Media> loadMedia(String tagName) {
-        return mediaMapper.selectByExactTag(tagName);
-    }
-
-    private long countMedia(List<Media> media, String name) {
-        return media.stream().filter(item -> TagCodec.decode(item.getTags()).contains(name)).count();
+        boolean referenced = submissionTagMapper.countByTagId(tagId) > 0
+                || mediaTagMapper.countByTagId(tagId) > 0;
+        if (referenced && !force) {
+            throw new BizException(BizCode.ADMIN_TAG_IN_USE);
+        }
+        if (referenced) tagRelationService.removeTag(tagId);
+        tagMapper.deleteById(tagId);
     }
 
     private Tag requireTag(Long id) {

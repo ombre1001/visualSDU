@@ -66,7 +66,7 @@ public class SearchService {
         }
 
         tagMapper.selectUsedTagSuggestions(keyword, candidateLimit).stream()
-                .map(tag -> new SearchSuggestionVO("TAG", null, tag, "标签"))
+                .map(this::toSuggestion)
                 .forEach(item -> addSuggestion(suggestions, item));
 
         mediaMapper.selectSearchSuggestions(keyword, candidateLimit).stream()
@@ -97,16 +97,14 @@ public class SearchService {
             );
         }
 
-        List<MediaSummaryVO> items =
+        List<MediaSummaryVO> items = mediaService.toSummaries(
                 mediaSearchMapper.searchMedia(
-                                query,
-                                query.getSort(),
-                                offset,
-                                query.getSize()
-                        )
-                        .stream()
-                        .map(mediaService::toSummary)
-                        .toList();
+                        query,
+                        query.getSort(),
+                        offset,
+                        query.getSize()
+                )
+        );
 
         return new PageResult<>(
                 total,
@@ -118,8 +116,6 @@ public class SearchService {
 
     private void normalizeQuery(SearchMediaQueryDTO query) {
         query.setQ(normalizeKeyword(query.getQ()));
-        query.setTag(normalizeText(query.getTag()));
-
         String sort = normalizeText(query.getSort());
 
         if (sort == null) {

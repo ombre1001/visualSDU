@@ -76,6 +76,7 @@ public enum BizCode {
     SEARCH_KEYWORD_TOO_LONG(15000, "搜索关键词长度不能超过50个字符", 400),
     SEARCH_SORT_INVALID(15001, "搜索排序方式不正确", 400),
     TOPIC_NOT_FOUND(15100, "专题不存在或已停用", 404),
+    TAG_NOT_FOUND(15200, "标签不存在", 404),
 
     // 个人中心：16xxx
     USER_PROFILE_UPDATE_EMPTY(16000, "请至少提供一项需要修改的个人资料", 400),
@@ -108,6 +109,7 @@ public enum BizCode {
     ADMIN_TAG_NAME_EXISTS(17101, "标签名称已存在", 409),
     ADMIN_TAG_UPDATE_EMPTY(17102, "请提供需要修改的标签名称", 400),
     ADMIN_TAG_MERGE_SELF(17103, "标签不能合并到自身", 409),
+    ADMIN_TAG_IN_USE(17104, "标签仍被稿件或媒体引用", 409),
     ADMIN_LOCATION_NOT_FOUND(17110, "地点不存在", 404),
     ADMIN_LOCATION_UPDATE_EMPTY(17111, "请至少提供一项需要修改的地点信息", 400),
     ADMIN_LOCATION_CAMPUS_INVALID(17112, "目标校区不存在或已停用", 400),

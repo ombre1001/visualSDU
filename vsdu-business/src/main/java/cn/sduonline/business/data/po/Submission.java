@@ -20,7 +20,6 @@ public class Submission {
     private Long locationId;
     private String description;
     private LocalDateTime shotAt;
-    private String tags;
     private SubmissionStatus status;
     private String reviewReason;
     private LocalDateTime submittedAt;

@@ -4,11 +4,7 @@ import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Topic;
 import cn.sduonline.business.data.po.UserFavoriteTarget;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 

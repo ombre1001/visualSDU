@@ -7,7 +7,7 @@
     <sql id="allColumns">
         m.id, m.submission_id, m.uploader_id, m.location_id,
         m.object_key, m.thumbnail_key, m.title, m.description,
-        m.shot_at, m.tags, m.status, m.view_count, m.like_count,
+        m.shot_at, m.status, m.view_count, m.like_count,
         m.favorite_count, m.download_count, m.created_at, m.updated_at
     </sql>
 
@@ -23,7 +23,13 @@
                 AND (
                     m.title LIKE CONCAT('%', #{keyword}, '%')
                     OR m.description LIKE CONCAT('%', #{keyword}, '%')
-                    OR m.tags LIKE CONCAT('%', #{keyword}, '%')
+                    OR EXISTS (
+                        SELECT 1
+                        FROM media_tag mt
+                        INNER JOIN tag matched_tag ON matched_tag.id = mt.tag_id
+                        WHERE mt.media_id = m.id
+                          AND matched_tag.name LIKE CONCAT('%', #{keyword}, '%')
+                    )
                 )
             </if>
         </where>
@@ -52,7 +58,13 @@
             AND (
                 m.title LIKE CONCAT('%', #{keyword}, '%')
                 OR m.description LIKE CONCAT('%', #{keyword}, '%')
-                OR m.tags LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (
+                    SELECT 1
+                    FROM media_tag mt
+                    INNER JOIN tag matched_tag ON matched_tag.id = mt.tag_id
+                    WHERE mt.media_id = m.id
+                      AND matched_tag.name LIKE CONCAT('%', #{keyword}, '%')
+                )
             )
         </if>
         ORDER BY
@@ -76,16 +88,19 @@
             m.like_count,
             m.favorite_count
         FROM media m
-        LEFT JOIN location l ON l.id = m.location_id
+        INNER JOIN location l ON l.id = m.location_id AND l.status = 1
+        INNER JOIN campus c ON c.id = l.campus_id AND c.status = 1
+        INNER JOIN city ci ON ci.id = c.city_id AND ci.status = 1
         WHERE m.status = 1
           AND m.id != #{sourceId}
           AND (
               m.location_id = #{locationId}
-              <if test="tag != null and tag != ''">
-                  OR LOCATE(
-                      CONCAT('|', #{tag}, '|'),
-                      CONCAT('|', COALESCE(m.tags, ''), '|')
-                  ) > 0
+              <if test="tagId != null">
+                  OR EXISTS (
+                      SELECT 1 FROM media_tag related_tag
+                      WHERE related_tag.media_id = m.id
+                        AND related_tag.tag_id = #{tagId}
+                  )
               </if>
           )
         ORDER BY m.like_count DESC, m.view_count DESC, m.id DESC
@@ -133,16 +148,6 @@
         LIMIT #{offset}, #{size}
     </select>
 
-    <select id="selectByExactTag" resultType="cn.sduonline.business.data.po.Media">
-        SELECT id, tags
-        FROM media
-        WHERE LOCATE(
-            CONCAT('|', #{tag}, '|'),
-            CONCAT('|', COALESCE(tags, ''), '|')
-        ) > 0
-        ORDER BY id
-    </select>
-
     <select id="countVisibleCreatedBetween" resultType="java.lang.Long">
         select COUNT(*)
         from media
@@ -155,19 +160,5 @@
     <select id="countVisibleTotal" resultType="java.lang.Long">
         select COUNT(*) from media where status = 1
     </select>
-
-    <update id="batchUpdateTags">
-        UPDATE media
-        SET tags = CASE id
-            <foreach collection="patches" item="item">
-                WHEN #{item.id} THEN #{item.tags}
-            </foreach>
-        END,
-        updated_at = #{updatedAt}
-        WHERE id IN
-        <foreach collection="patches" item="item" open="(" separator="," close=")">
-            #{item.id}
-        </foreach>
-    </update>
 
 </mapper>

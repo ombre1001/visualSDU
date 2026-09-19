@@ -6,13 +6,18 @@ import cn.sduonline.business.data.enums.ImageScene;
 import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.enums.UserRole;
 import cn.sduonline.business.data.enums.UserStatus;
-import cn.sduonline.business.data.po.*;
+import cn.sduonline.business.data.po.Location;
+import cn.sduonline.business.data.po.Submission;
+import cn.sduonline.business.data.po.SubmissionAsset;
+import cn.sduonline.business.data.po.User;
 import cn.sduonline.business.data.projection.SubmissionSummaryRow;
 import cn.sduonline.business.data.vo.SubmissionAssetVO;
 import cn.sduonline.business.data.vo.SubmissionDetailVO;
 import cn.sduonline.business.data.vo.SubmissionSummaryVO;
-import cn.sduonline.business.mapper.*;
-import cn.sduonline.business.util.TagCodec;
+import cn.sduonline.business.mapper.LocationMapper;
+import cn.sduonline.business.mapper.SubmissionAssetMapper;
+import cn.sduonline.business.mapper.SubmissionMapper;
+import cn.sduonline.business.mapper.UserMapper;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
@@ -28,9 +33,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +47,7 @@ public class SubmissionService {
     private final SubmissionAssetMapper assetMapper;
     private final UserMapper userMapper;
     private final LocationMapper locationMapper;
-    private final TagMapper tagMapper;
+    private final TagRelationService tagRelationService;
     private final SubmissionReviewSettingService reviewSettingService;
     private final SubmissionPublicationService publicationService;
     private final ImageFileUpload imageFileUpload;
@@ -60,13 +65,13 @@ public class SubmissionService {
                 .locationId(location.getId())
                 .description(request.getDescription())
                 .shotAt(request.getShotAt())
-                .tags(encodeTagIds(request.getTagIds()))
                 .status(SubmissionStatus.PENDING)
                 .submittedAt(LocalDateTime.now())
                 .version(0)
                 .deleted(false)
                 .build();
         submissionMapper.insert(submission);
+        tagRelationService.replaceSubmissionTags(submission.getId(), request.getTagIds());
 
         List<String> newKeys = uploadAndInsertAssets(submission.getId(), userId, files, 0);
         deleteKeysOnRollback(newKeys);
@@ -116,7 +121,9 @@ public class SubmissionService {
 
         if (request.getLocationId() != null) submission.setLocationId(location.getId());
         if (request.getShotAt() != null) submission.setShotAt(request.getShotAt());
-        if (request.getTags() != null) submission.setTags(TagCodec.encode(request.getTags()));
+        if (request.getTagIds() != null) {
+            tagRelationService.replaceSubmissionTags(submissionId, request.getTagIds());
+        }
         if (request.getDescription() != null) submission.setDescription(request.getDescription());
 
         List<MultipartFile> files = normalizedFiles(request.getFiles());
@@ -360,7 +367,8 @@ public class SubmissionService {
                 .toList();
         return new SubmissionDetailVO(
                 submission.getId(), submission.getUserId(), submission.getLocationId(), location.getName(),
-                submission.getDescription(), submission.getShotAt(), TagCodec.decode(submission.getTags()),
+                submission.getDescription(), submission.getShotAt(),
+                tagRelationService.listSubmissionTagNames(submission.getId()),
                 submission.getStatus(), submission.getReviewReason(), submission.getSubmittedAt(),
                 submission.getReviewedBy(), submission.getReviewedAt(), submission.getCreatedAt(),
                 submission.getUpdatedAt(), assets
@@ -375,30 +383,6 @@ public class SubmissionService {
                 Objects.requireNonNullElse(row.getAssetCount(), 0), coverUrl,
                 row.getSubmittedAt(), row.getUpdatedAt()
         );
-    }
-
-    /**
-     * 创建稿件接口接收标签 ID 数组；数据库仍保存标签名称编码，兼容现有搜索和展示逻辑。
-     */
-    private String encodeTagIds(List<Long> tagIds) {
-        if (tagIds == null || tagIds.isEmpty()) return null;
-
-        LinkedHashSet<Long> uniqueTagIds = new LinkedHashSet<>(tagIds);
-        Map<Long, Tag> tagsById = tagMapper.selectByIds(uniqueTagIds)
-                .stream()
-                .collect(Collectors.toMap(Tag::getId, Function.identity()));
-
-        List<String> tagNames = uniqueTagIds.stream()
-                .map(tagId -> {
-                    Tag tag = tagsById.get(tagId);
-                    if (tag == null) {
-                        throw new BizException(BizCode.ADMIN_TAG_NOT_FOUND);
-                    }
-                    return tag.getName();
-                })
-                .toList();
-
-        return TagCodec.encode(tagNames);
     }
 
     private void deleteKeysOnRollback(List<String> keys) {

@@ -5,14 +5,10 @@ import cn.sduonline.business.data.dto.StreamDownloadFile;
 import cn.sduonline.business.data.enums.UserStatus;
 import cn.sduonline.business.data.po.*;
 import cn.sduonline.business.data.projection.MediaSummaryRow;
-import cn.sduonline.business.data.vo.MediaDetailVO;
-import cn.sduonline.business.data.vo.MediaDownloadVO;
-import cn.sduonline.business.data.vo.MediaInteractionVO;
-import cn.sduonline.business.data.vo.MediaSummaryVO;
+import cn.sduonline.business.data.vo.*;
 import cn.sduonline.business.mapper.*;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.business.util.MediaTicketUtils;
-import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.infrastructure.file.model.DownloadFile;
@@ -22,9 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,9 +37,36 @@ public class MediaService {
     private final LocationMapper locationMapper;
     private final FileStorage fileStorage;
     private final MediaTicketUtils mediaTicketUtils;
+    private final TagRelationService tagRelationService;
 
     public MediaDetailVO detail(Long mediaId, Long optionalUserId) {
-        return toDetail(requireVisible(mediaId), formalUserIdOrNull(optionalUserId));
+        Media media = requireVisible(mediaId);
+        return toDetail(
+                media,
+                formalUserIdOrNull(optionalUserId),
+                tagRelationService.listMediaTags(mediaId)
+        );
+    }
+
+    List<MediaDetailVO> details(List<Long> mediaIds, Long optionalUserId) {
+        if (mediaIds.isEmpty()) return List.of();
+        Long formalUserId = formalUserIdOrNull(optionalUserId);
+        Map<Long, Media> mediaById = mediaMapper.selectByIds(new LinkedHashSet<>(mediaIds)).stream()
+                .filter(media -> Objects.equals(media.getStatus(), VISIBLE))
+                .collect(Collectors.toMap(Media::getId, Function.identity()));
+        List<Media> orderedMedia = mediaIds.stream().map(id -> {
+            Media media = mediaById.get(id);
+            if (media == null) throw new BizException(BizCode.MEDIA_NOT_FOUND);
+            return media;
+        }).toList();
+        Map<Long, List<Tag>> tagsByMedia = tagRelationService.listMediaTags(mediaIds);
+        return orderedMedia.stream()
+                .map(media -> toDetail(
+                        media,
+                        formalUserId,
+                        tagsByMedia.getOrDefault(media.getId(), List.of())
+                ))
+                .toList();
     }
 
     @Transactional
@@ -134,8 +157,6 @@ public class MediaService {
                         .build()
         );
     }
-
-    private static final String DEFAULT_DOWNLOAD_NAME_TEMPLATE = "vsdu-media-%d";
 
     @Transactional
     public StreamDownloadFile streamDownloadFile(String ticket) {
@@ -232,12 +253,10 @@ public class MediaService {
     public List<MediaSummaryVO> related(Long mediaId, int size) {
         Media source = requireVisible(mediaId);
         int safeSize = Math.clamp(size, 1, 30);
-        String tag = source.getTags() == null || source.getTags().isBlank()
-                ? null : firstTag(source.getTags());
-        return mediaMapper.selectRelatedMedia(mediaId, source.getLocationId(), tag, safeSize)
-                .stream()
-                .map(this::toSummary)
-                .toList();
+        Long tagId = tagRelationService.firstMediaTagId(mediaId);
+        return toSummaries(mediaMapper.selectRelatedMedia(
+                mediaId, source.getLocationId(), tagId, safeSize
+        ));
     }
 
     Media requireVisible(Long mediaId) {
@@ -248,27 +267,52 @@ public class MediaService {
         return media;
     }
 
-    MediaSummaryVO toSummary(Media media) {
+    List<MediaSummaryVO> toMediaSummaries(List<Media> media) {
+        if (media.isEmpty()) return List.of();
+        Map<Long, List<Tag>> tagsByMedia = tagRelationService.listMediaTags(
+                media.stream().map(Media::getId).toList()
+        );
+        return media.stream()
+                .map(item -> toSummary(item, tagsByMedia.getOrDefault(item.getId(), List.of())))
+                .toList();
+    }
+
+    private MediaSummaryVO toSummary(Media media, List<Tag> tags) {
         Location location = locationMapper.selectById(media.getLocationId());
-        String thumbnailKey = media.getThumbnailKey() == null || media.getThumbnailKey().isBlank()
-                ? media.getObjectKey() : media.getThumbnailKey();
         return new MediaSummaryVO(
                 media.getId(), media.getTitle(), media.getLocationId(),
-                location == null ? null : location.getName(), fileStorage.getUrl(thumbnailKey),
-                media.getShotAt(), value(media.getViewCount()), value(media.getLikeCount()),
+                location == null ? null : location.getName(), thumbnailUrl(media),
+                media.getShotAt(), toTagVOs(tags), value(media.getViewCount()), value(media.getLikeCount()),
                 value(media.getFavoriteCount())
         );
     }
 
-    MediaSummaryVO toSummary(MediaSummaryRow row) {
+    List<MediaSummaryVO> toSummaries(List<MediaSummaryRow> rows) {
+        if (rows.isEmpty()) return List.of();
+        Map<Long, List<Tag>> tagsByMedia = tagRelationService.listMediaTags(
+                rows.stream().map(MediaSummaryRow::getId).toList()
+        );
+        return rows.stream()
+                .map(row -> toSummary(row, tagsByMedia.getOrDefault(row.getId(), List.of())))
+                .toList();
+    }
+
+    private MediaSummaryVO toSummary(MediaSummaryRow row, List<Tag> tags) {
         return new MediaSummaryVO(
                 row.getId(), row.getTitle(), row.getLocationId(), row.getLocationName(),
                 fileStorage.getUrl(row.getThumbnailKey()), row.getShotAt(),
+                toTagVOs(tags),
                 value(row.getViewCount()), value(row.getLikeCount()), value(row.getFavoriteCount())
         );
     }
 
-    private MediaDetailVO toDetail(Media media, Long optionalUserId) {
+    String thumbnailUrl(Media media) {
+        String thumbnailKey = media.getThumbnailKey() == null || media.getThumbnailKey().isBlank()
+                ? media.getObjectKey() : media.getThumbnailKey();
+        return fileStorage.getUrl(thumbnailKey);
+    }
+
+    private MediaDetailVO toDetail(Media media, Long optionalUserId, List<Tag> tags) {
         Location location = locationMapper.selectById(media.getLocationId());
         User uploader = media.getUploaderId() == null ? null : userMapper.selectById(media.getUploaderId());
         boolean liked = optionalUserId != null && hasLike(optionalUserId, media.getId());
@@ -279,7 +323,7 @@ public class MediaService {
                 media.getId(), media.getUploaderId(), uploader == null ? null : uploader.getNickname(),
                 media.getLocationId(), location == null ? null : location.getName(), media.getTitle(),
                 media.getDescription(), fileStorage.getUrl(media.getObjectKey()), fileStorage.getUrl(thumbnailKey),
-                media.getShotAt(), TagCodec.decode(media.getTags()), value(media.getViewCount()),
+                media.getShotAt(), toTagVOs(tags), value(media.getViewCount()),
                 value(media.getLikeCount()), value(media.getFavoriteCount()), value(media.getDownloadCount()),
                 liked, favorited, media.getCreatedAt()
         );
@@ -358,13 +402,12 @@ public class MediaService {
                 && user.getStatus() == UserStatus.NORMAL;
     }
 
-    private String firstTag(String tags) {
-        List<String> decoded = TagCodec.decode(tags);
-        return decoded.isEmpty() ? tags : decoded.getFirst();
-    }
-
     private long value(Long count) {
         return Objects.requireNonNullElse(count, 0L);
+    }
+
+    private List<TagVO> toTagVOs(List<Tag> tags) {
+        return tags.stream().map(tag -> new TagVO(tag.getId(), tag.getName())).toList();
     }
 
 

@@ -59,7 +59,7 @@ public class SubmissionController {
 
     /**
      * 修改投稿
-     * 修改待审核或已驳回稿件；标签使用同名多值字段 tags，修改后不会自动重新提交。
+     * 修改待审核或已驳回稿件；标签 ID 使用同名多值字段 tagIds，修改后不会自动重新提交。
      */
     @PutMapping(value = "/{submissionId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<SubmissionDetailVO> update(

@@ -7,9 +7,9 @@ import cn.sduonline.business.data.dto.SearchMediaQueryDTO;
 import cn.sduonline.business.data.enums.ReportStatus;
 import cn.sduonline.business.data.enums.SubmissionStatus;
 import cn.sduonline.business.data.po.Location;
+import cn.sduonline.business.data.po.MediaTag;
 import cn.sduonline.business.data.po.Submission;
 import cn.sduonline.business.data.po.Topic;
-import cn.sduonline.business.data.projection.MediaTagPatch;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.junit.jupiter.api.Test;
@@ -66,19 +66,35 @@ class MapperXmlParsingTest {
                         "request", new AdminUpdateUserPermissionRequest(true, null),
                         "updatedAt", LocalDateTime.now()
                 ), "allow_upload = ?");
-        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaMapper.batchUpdateTags",
-                Map.of(
-                        "patches", List.of(new MediaTagPatch(1L, "校园|建筑")),
-                        "updatedAt", LocalDateTime.now()
-                ), "CASE id");
+        MediaTag mediaTag = new MediaTag();
+        mediaTag.setMediaId(1L);
+        mediaTag.setTagId(2L);
+        mediaTag.setSortOrder(0);
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaTagMapper.insertBatch",
+                Map.of("relations", List.of(mediaTag)), "INSERT INTO media_tag");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.TagMapper.selectByIdsForUpdate",
+                Map.of("tagIds", List.of(1L, 2L)), "FOR UPDATE");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionTagMapper.selectBySubmissionIdsForUpdate",
+                Map.of("submissionIds", List.of(1L)), "FOR UPDATE");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaTagMapper.selectByMediaIdsForUpdate",
+                Map.of("mediaIds", List.of(1L)), "FOR UPDATE");
 
         SearchMediaQueryDTO query = new SearchMediaQueryDTO();
         query.setQ("校园");
+        query.setTagId(2L);
         assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaSearchMapper.searchMedia",
                 Map.of("query", query, "sort", "relevance", "offset", 0L, "limit", 20L),
-                "ORDER BY");
+                "filter_mt.tag_id = ?");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaTagMapper.selectPopularTags",
+                Map.of("cityId", 1L, "tagLimit", 12),
+                "AND ci.id = ?");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.MediaTagMapper.selectFirstTagId",
+                Map.of("mediaId", 1L), "sort_order = 0");
+        assertSqlContains(configuration, "cn.sduonline.business.mapper.TagMapper.selectPublicTagPage",
+                Map.of("keyword", "建筑", "sort", "popular", "offset", 0L, "size", 50L),
+                "COUNT(ci.id) DESC");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.TagMapper.selectUsedTagSuggestions",
-                Map.of("keyword", "校园", "limit", 20), "ROW_NUMBER()");
+                Map.of("keyword", "校园", "limit", 20), "ranked_ci.status = 1");
         assertSqlContains(configuration, "cn.sduonline.business.mapper.SubmissionMapper.updateReviewWithVersion",
                 Map.of(
                         "submissionId", 1L,

@@ -78,15 +78,13 @@ public class TopicService {
             );
         }
 
-        List<MediaSummaryVO> items =
+        List<MediaSummaryVO> items = mediaService.toSummaries(
                 topicMediaMapper.selectVisibleMedia(
-                                topic.getId(),
-                                offset,
-                                safeSize
-                        )
-                        .stream()
-                        .map(mediaService::toSummary)
-                        .toList();
+                        topic.getId(),
+                        offset,
+                        safeSize
+                )
+        );
 
         return new PageResult<>(
                 total,

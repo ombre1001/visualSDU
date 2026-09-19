@@ -6,8 +6,8 @@ import cn.sduonline.business.data.po.Location;
 import cn.sduonline.business.data.po.Media;
 import cn.sduonline.business.data.po.Tag;
 import cn.sduonline.business.data.vo.AdminMediaVO;
+import cn.sduonline.business.data.vo.TagVO;
 import cn.sduonline.business.mapper.*;
-import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
@@ -29,7 +29,7 @@ public class AdminMediaService {
     private static final int VISIBLE = 1;
     private final MediaMapper mediaMapper;
     private final LocationMapper locationMapper;
-    private final TagMapper tagMapper;
+    private final TagRelationService tagRelationService;
     private final MediaLikeMapper mediaLikeMapper;
     private final MediaFavoriteMapper mediaFavoriteMapper;
     private final MediaDownloadMapper mediaDownloadMapper;
@@ -50,7 +50,12 @@ public class AdminMediaService {
         List<Media> records = total == 0
                 ? List.of()
                 : mediaMapper.selectAdminPage(q, locationId, status, offset, s);
-        return new PageResult<>(total, p, s, records.stream().map(this::toVO).toList());
+        Map<Long, List<Tag>> tagsByMedia = tagRelationService.listMediaTags(
+                records.stream().map(Media::getId).toList()
+        );
+        return new PageResult<>(total, p, s, records.stream()
+                .map(media -> toVO(media, tagsByMedia.getOrDefault(media.getId(), List.of())))
+                .toList());
     }
 
     @Transactional
@@ -66,18 +71,7 @@ public class AdminMediaService {
             update.set(Media::getLocationId, r.locationId());
         }
         if (r.tagIds() != null) {
-            if (new HashSet<>(r.tagIds()).size() != r.tagIds().size()) {
-                throw new BizException(BizCode.BAD_REQUEST, "标签ID不能重复");
-            }
-            List<String> names = new ArrayList<>();
-            for (Long tagId : r.tagIds()) {
-                Tag tag = tagMapper.selectById(tagId);
-                if (tag == null) throw new BizException(BizCode.ADMIN_TAG_NOT_FOUND);
-                names.add(tag.getName());
-            }
-            String tags = TagCodec.encode(names);
-            media.setTags(tags);
-            update.set(Media::getTags, tags);
+            tagRelationService.replaceMediaTags(mediaId, r.tagIds());
         }
         LocalDateTime now = LocalDateTime.now();
         media.setUpdatedAt(now); update.set(Media::getUpdatedAt, now); mediaMapper.update(null, update); return toVO(media);
@@ -167,9 +161,14 @@ public class AdminMediaService {
     }
 
     private AdminMediaVO toVO(Media m) {
+        return toVO(m, tagRelationService.listMediaTags(m.getId()));
+    }
+
+    private AdminMediaVO toVO(Media m, List<Tag> tags) {
         return new AdminMediaVO(m.getId(), m.getSubmissionId(), m.getUploaderId(), m.getLocationId(),
                 url(m.getObjectKey()), url(m.getThumbnailKey()), m.getTitle(), m.getDescription(), m.getShotAt(),
-                TagCodec.decode(m.getTags()), m.getStatus(), Objects.requireNonNullElse(m.getViewCount(), 0L),
+                tags.stream().map(tag -> new TagVO(tag.getId(), tag.getName())).toList(),
+                m.getStatus(), Objects.requireNonNullElse(m.getViewCount(), 0L),
                 Objects.requireNonNullElse(m.getLikeCount(), 0L), Objects.requireNonNullElse(m.getFavoriteCount(), 0L),
                 Objects.requireNonNullElse(m.getDownloadCount(), 0L), m.getCreatedAt(), m.getUpdatedAt());
     }

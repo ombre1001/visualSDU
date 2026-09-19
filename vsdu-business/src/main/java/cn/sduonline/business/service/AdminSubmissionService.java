@@ -13,7 +13,6 @@ import cn.sduonline.business.data.vo.*;
 import cn.sduonline.business.mapper.SubmissionAssetMapper;
 import cn.sduonline.business.mapper.SubmissionMapper;
 import cn.sduonline.business.mapper.SubmissionReviewLogMapper;
-import cn.sduonline.business.util.TagCodec;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;
 import cn.sduonline.common.result.PageResult;
@@ -37,6 +36,7 @@ public class AdminSubmissionService {
     private final SubmissionAssetMapper assetMapper;
     private final SubmissionReviewLogMapper reviewLogMapper;
     private final AdminSubmissionReviewExecutor reviewExecutor;
+    private final TagRelationService tagRelationService;
     private final FileStorage fileStorage;
 
     public PageResult<AdminSubmissionSummaryVO> list(
@@ -63,12 +63,18 @@ public class AdminSubmissionService {
                 statusValue, normalizedKeyword, userId, locationId, submittedFrom, submittedTo
         );
         long offset = (safePage - 1) * safeSize;
-        List<AdminSubmissionSummaryVO> items = total == 0
+        List<AdminSubmissionSummaryRow> rows = total == 0
                 ? List.of()
                 : submissionMapper.selectAdminSubmissionPage(
                         statusValue, normalizedKeyword, userId, locationId,
                         submittedFrom, submittedTo, normalizedSort, offset, safeSize
-                ).stream().map(this::toSummaryVO).toList();
+                );
+        Map<Long, List<String>> tagsBySubmission = tagRelationService.listSubmissionTagNames(
+                rows.stream().map(AdminSubmissionSummaryRow::getId).toList()
+        );
+        List<AdminSubmissionSummaryVO> items = rows.stream()
+                .map(row -> toSummaryVO(row, tagsBySubmission.getOrDefault(row.getId(), List.of())))
+                .toList();
         return new PageResult<>(total, safePage, safeSize, items);
     }
 
@@ -96,7 +102,7 @@ public class AdminSubmissionService {
         );
         return new AdminSubmissionDetailVO(
                 row.getId(), uploader, row.getLocationId(), row.getLocationName(),
-                row.getDescription(), row.getShotAt(), TagCodec.decode(row.getTags()),
+                row.getDescription(), row.getShotAt(), tagRelationService.listSubmissionTagNames(row.getId()),
                 row.getStatus(), row.getReviewReason(), row.getSubmittedAt(),
                 row.getReviewedBy(), row.getReviewerName(), row.getReviewedAt(),
                 row.getCreatedAt(), row.getUpdatedAt(), row.getVersion(), assets, recentLogs
@@ -196,11 +202,11 @@ public class AdminSubmissionService {
         }
     }
 
-    private AdminSubmissionSummaryVO toSummaryVO(AdminSubmissionSummaryRow row) {
+    private AdminSubmissionSummaryVO toSummaryVO(AdminSubmissionSummaryRow row, List<String> tags) {
         return new AdminSubmissionSummaryVO(
                 row.getId(), row.getUserId(), row.getUploaderName(),
                 row.getLocationId(), row.getLocationName(), row.getDescription(),
-                row.getShotAt(), TagCodec.decode(row.getTags()), row.getStatus(),
+                row.getShotAt(), tags, row.getStatus(),
                 row.getReviewReason(), Objects.requireNonNullElse(row.getAssetCount(), 0),
                 url(row.getCoverKey()), row.getSubmittedAt(), row.getReviewedAt(),
                 row.getUpdatedAt(), row.getVersion()

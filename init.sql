@@ -349,7 +349,6 @@ create table submission
     location_id   bigint unsigned                            not null comment '拍摄地点ID',
     description   text                                       null comment '稿件描述',
     shot_at       datetime                                   null comment '拍摄时间',
-    tags          varchar(1000)                              null comment '竖线分隔的标签',
     status        tinyint unsigned default '0'               not null comment '0待审 1通过 2退回 3撤回 4被拒',
     review_reason varchar(1000)                              null comment '退回原因',
     submitted_at  datetime                                   not null comment '最近提交审核时间',
@@ -382,7 +381,6 @@ create table media
     title          varchar(150)                               null comment '标题',
     description    text                                       null comment '图片说明',
     shot_at        datetime                                   null comment '拍摄时间',
-    tags           varchar(1000)                              null comment '竖线分隔的标签',
     status         tinyint unsigned default '1'               not null comment '0隐藏 1可见',
     view_count     bigint unsigned  default '0'               not null,
     like_count     bigint unsigned  default '0'               not null,
@@ -420,6 +418,48 @@ create index idx_media_status_shot_at
 
 create index idx_media_submission
     on media (submission_id);
+
+create table submission_tag
+(
+    submission_id bigint unsigned                    not null comment '稿件ID',
+    tag_id        bigint                             not null comment '标签ID',
+    sort_order    tinyint unsigned default '0'       not null comment '标签顺序，从0开始',
+    created_at    datetime         default CURRENT_TIMESTAMP not null comment '创建时间',
+    primary key (submission_id, tag_id),
+    constraint uk_submission_tag_sort
+        unique (submission_id, sort_order),
+    constraint fk_submission_tag_submission
+        foreign key (submission_id) references submission (id)
+            on delete cascade,
+    constraint fk_submission_tag_tag
+        foreign key (tag_id) references tag (id)
+            on delete restrict
+)
+    comment '稿件标签关系' collate = utf8mb4_unicode_ci;
+
+create index idx_submission_tag_tag
+    on submission_tag (tag_id, submission_id);
+
+create table media_tag
+(
+    media_id   bigint unsigned                    not null comment '媒体ID',
+    tag_id     bigint                             not null comment '标签ID',
+    sort_order tinyint unsigned default '0'       not null comment '标签顺序，从0开始',
+    created_at datetime         default CURRENT_TIMESTAMP not null comment '创建时间',
+    primary key (media_id, tag_id),
+    constraint uk_media_tag_sort
+        unique (media_id, sort_order),
+    constraint fk_media_tag_media
+        foreign key (media_id) references media (id)
+            on delete cascade,
+    constraint fk_media_tag_tag
+        foreign key (tag_id) references tag (id)
+            on delete restrict
+)
+    comment '媒体标签关系' collate = utf8mb4_unicode_ci;
+
+create index idx_media_tag_tag
+    on media_tag (tag_id, media_id);
 
 create table media_download
 (

@@ -96,7 +96,7 @@ token: <accessToken>
 - 投稿创建、修改和头像上传使用 `multipart/form-data`；使用浏览器 `FormData` 时不要手动设置带 boundary 的 `Content-Type`。
 - `LocalDateTime` 使用不带时区的 ISO 8601 字符串，例如 `2026-08-15T14:30:00`。
 - ID、计数和经纬度在 JSON 中均为数字。
-- 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建投稿的标签 ID 使用 `tagIds` 同名多值字段，修改投稿的标签名称仍使用 `tags` 同名多值字段。
+- 投稿文件使用同名多值字段，例如多次 `formData.append("files", file)`；创建和修改投稿的标签 ID 都使用 `tagIds` 同名多值字段。
 - 媒体图片、缩略图、投稿预览、用户头像、城市与地点封面和旧版下载地址由 R2 ObjectKey 生成预签名 URL，有效期为 10 分钟。不要长期缓存 URL；需要时重新请求对应详情。流式下载接口返回同源文件流，不返回 JSON。
 - 城市和地点在数据库中只保存 `coverKey`；公开接口返回由 `FileStorage#getUrl` 生成的 `coverUrl`。校区当前仍直接保存并返回 URL。
 
@@ -138,6 +138,8 @@ token: <accessToken>
 | 媒体 | POST | `/media/{mediaId}/downloads/ticket` | 登录 | Path | 下载票据字符串 |
 | 媒体 | GET | `/media/downloads/stream` | 公开 | Query | 图片文件二进制流 |
 | 媒体 | GET | `/media/{mediaId}/related` | 公开 | Query | 媒体摘要对象数组 |
+| 标签 | GET | `/tags` | 公开 | Query | 标签分页对象 |
+| 标签 | GET | `/tags/lookup` | 公开 | Query | 标签对象数组 |
 | 举报 | GET | `/reports/reasons` | 公开 | - | 举报理由对象数组 |
 | 举报 | POST | `/reports/media` | 登录 | JSON | 媒体举报提交结果对象 |
 | 举报 | POST | `/reports/user` | 登录 | JSON | 用户举报提交结果对象 |
@@ -191,6 +193,7 @@ token: <accessToken>
 | 管理标签 | POST | `/admin/tags` | 管理员 | JSON | 管理标签对象 |
 | 管理标签 | PATCH | `/admin/tags/{tagId}` | 管理员 | JSON | 管理标签对象 |
 | 管理标签 | POST | `/admin/tags/{tagId}/merge` | 管理员 | JSON | `null` |
+| 管理标签 | DELETE | `/admin/tags/{tagId}` | 管理员 | Path + Query | `null` |
 | 管理专题 | POST | `/admin/topics` | 管理员 | JSON | 管理专题对象 |
 | 管理专题 | PATCH | `/admin/topics/{topicId}` | 管理员 | JSON | 管理专题对象 |
 | 管理时光对比 | POST | `/admin/time-comparisons` | 管理员 | JSON | 管理时光对比对象 |
@@ -687,6 +690,7 @@ GET /locations/{locationId}/media?page=1&size=20
 | `data.items[].title`、`locationName` | string | 是 | 标题、地点名称 |
 | `data.items[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].viewCount`、`likeCount`、`favoriteCount` | number | 否 | 浏览、点赞、收藏数 |
 
 JSON 响应示例：
@@ -801,7 +805,9 @@ token: <可选 accessToken>
 | `data.imageUrl` | string | 否 | 原图预签名 URL，约 10 分钟有效 |
 | `data.thumbnailUrl` | string | 否 | 缩略图预签名 URL，约 10 分钟有效 |
 | `data.shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
-| `data.tags` | array&lt;string&gt; | 否 | 标签数组；无标签时为 `[]` |
+| `data.tags` | array&lt;object&gt; | 否 | 标签数组；无标签时为 `[]` |
+| `data.tags[].id` | number | 否 | 标签 ID |
+| `data.tags[].name` | string | 否 | 标签名称 |
 | `data.viewCount` | number | 否 | 浏览次数 |
 | `data.likeCount` | number | 否 | 点赞数 |
 | `data.favoriteCount` | number | 否 | 收藏数 |
@@ -827,7 +833,7 @@ JSON 响应示例：
     "imageUrl": "https://r2.example.com/image.jpg?X-Amz-Signature=...",
     "thumbnailUrl": "https://r2.example.com/thumb.jpg?X-Amz-Signature=...",
     "shotAt": "2026-08-15T18:30:00",
-    "tags": ["晚霞", "建筑"],
+    "tags": [{"id":2,"name":"晚霞"},{"id":1,"name":"建筑"}],
     "viewCount": 121,
     "likeCount": 12,
     "favoriteCount": 7,
@@ -1194,7 +1200,7 @@ GET /media/{mediaId}/related?size=12
 |---|---:|---:|---:|---|
 | `size` | number | 否 | `12` | 小于 1 按 1，大于 30 按 30 |
 
-候选为相同地点或命中源媒体首个标签的可见媒体，按点赞数、浏览数降序；不包含源媒体自身。
+候选为相同地点或命中源媒体 `sort_order = 0` 首标签的可见媒体，按点赞数、浏览数降序；不包含源媒体自身，且媒体所属地点、校区、城市均须启用。
 
 响应 `data` 字段：
 
@@ -1207,6 +1213,7 @@ GET /media/{mediaId}/related?size=12
 | `data[].locationName` | string | 是 | 地点名称 |
 | `data[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data[].shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
+| `data[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data[].viewCount` | number | 否 | 浏览次数 |
 | `data[].likeCount` | number | 否 | 点赞数 |
 | `data[].favoriteCount` | number | 否 | 收藏数 |
@@ -1269,6 +1276,7 @@ token: <accessToken>
 | `data[].media[].locationName` | string | 是 | 媒体地点名称 |
 | `data[].media[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data[].media[].shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
+| `data[].media[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data[].media[].viewCount` | number | 否 | 浏览次数 |
 | `data[].media[].likeCount` | number | 否 | 点赞数 |
 | `data[].media[].favoriteCount` | number | 否 | 收藏数 |
@@ -1336,7 +1344,7 @@ token: <accessToken>
 | `data.items[].media.imageUrl` | string | 否 | 原图预签名 URL |
 | `data.items[].media.thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].media.shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
-| `data.items[].media.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.items[].media.tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].media.viewCount` | number | 否 | 浏览次数 |
 | `data.items[].media.likeCount` | number | 否 | 点赞数 |
 | `data.items[].media.favoriteCount` | number | 否 | 收藏数 |
@@ -1446,9 +1454,9 @@ Multipart 字段：
 - 应用层单文件上限为 20 MiB；请求还可能先受到 Spring multipart 或部署网关上限限制。
 - 空文件会被过滤；过滤后必须仍至少有一张有效图片。
 
-后端会按 `tagIds` 查询现有标签，并将对应的标签名称保存到稿件中；任一 ID 不存在时返回 `17100`。重复 ID 会按首次出现顺序去重。响应中的 `data.tags` 仍为标签名称数组，而不是标签 ID 数组。
+后端会校验 `tagIds` 全部存在，并按请求顺序写入稿件标签关系表；任一 ID 不存在时返回 `15200`，重复 ID 返回通用 `400`。响应中的 `data.tags` 仍为标签名称数组。
 
-> 当前仓库只有管理员可访问的 `GET /admin/tags` 能返回标签 ID；普通用户没有获取完整可选标签列表的接口，且搜索建议中的 `TAG` 项也不返回 ID。用户端在现有接口下无法自行取得创建投稿所需的 `tagIds`。
+> 当前仓库尚无普通用户获取完整可选标签列表的接口；搜索建议中的 `TAG` 项会返回已被可见媒体使用的标签 ID，但不能代替完整标签选项接口。
 
 浏览器示例：
 
@@ -1535,7 +1543,7 @@ JSON 响应示例（审核开启）：
 }
 ```
 
-主要错误：`12200`、`14000`、`14001`、`14004`、`14005`、`14007`、`14008`、`14009`、`17100`（标签不存在）、`19000` 及通用字段校验错误 `400`。
+主要错误：`12200`、`14000`、`14001`、`14004`、`14005`、`14007`、`14008`、`14009`、`15200`（标签不存在）、`19000` 及通用字段校验错误 `400`。
 
 ### 7.3 我的投稿
 
@@ -1687,13 +1695,11 @@ Content-Type: multipart/form-data
 
 仅投稿所有者可修改，且状态必须为 `PENDING` 或 `RETURNED`。Multipart 字段均为可选：
 
-> 当前仓库的修改投稿接口尚未改用标签 ID，仍接收标签名称字段 `tags`；不要在此接口提交 `tagIds`。
-
 | 字段 | 类型 | 默认/省略语义 | 约束/说明 |
 |---|---|---|---|
 | `locationId` | number | 保持原值 | 传入时必须为已启用地点 |
 | `shotAt` | ISO LocalDateTime | 保持原值 | - |
-| `tags` | string[] | 保持原值 | 最多 20 个，单个最多 32 字符 |
+| `tagIds` | number[] | 保持原值 | 最多 20 个正数标签 ID，不得重复；空数组表示清空标签 |
 | `description` | string | 保持原值 | 最多 2000 字符 |
 | `files` | File[] | 不修改图片 | 最多 9 张，并受合并后总数限制 |
 | `replaceFiles` | boolean | `false` | `false` 为追加；`true` 为替换全部旧图片 |
@@ -2562,7 +2568,7 @@ token: <管理员 accessToken>
 | `data.items[].submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
 | `data.items[].imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
 | `data.items[].shotAt` | string | 是 | 拍摄时间 |
-| `data.items[].tags` | array&lt;string&gt; | 否 | 标签名称数组 |
+| `data.items[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].status` | number | 否 | `0` 隐藏、`1` 可见 |
 | `data.items[].viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
 | `data.items[].createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
@@ -2585,7 +2591,7 @@ token: <管理员 accessToken>
       "title": "知新楼晚霞",
       "description": "傍晚的知新楼",
       "shotAt": "2026-08-15T18:30:00",
-      "tags": ["建筑", "晚霞"],
+      "tags": [{"id":1,"name":"建筑"},{"id":2,"name":"晚霞"}],
       "status": 1,
       "viewCount": 121,
       "likeCount": 12,
@@ -2612,7 +2618,7 @@ Content-Type: application/json
 | `locationId` | number | 否 | 正数；目标地点自身必须启用 |
 | `tagIds` | array&lt;number&gt; | 否 | 最多 20 个正数标签 ID，不得重复；`[]` 表示清空标签 |
 
-至少提供一个非 `null` 字段。标签关系实际以标签名称编码写入媒体。
+至少提供一个非 `null` 字段。标签关系按 `tagIds` 顺序写入媒体标签关系表。
 
 ```json
 {"locationId": 101, "tagIds": [1, 2]}
@@ -2626,16 +2632,16 @@ Content-Type: application/json
 | `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、修改后的地点 ID |
 | `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
 | `data.shotAt` | string | 是 | 拍摄时间 |
-| `data.tags` | array&lt;string&gt; | 否 | 修改后的标签名称数组 |
+| `data.tags` | array&lt;object&gt; | 否 | 修改后的标签对象数组，元素包含 `id`、`name` |
 | `data.status` | number | 否 | `0/1` |
 | `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
 
 ```json
-{"code":0,"msg":"媒体分类更新成功","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:30:00"},"timestamp":1787392800000}
+{"code":0,"msg":"媒体分类更新成功","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":[{"id":1,"name":"建筑"},{"id":2,"name":"晚霞"}],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:30:00"},"timestamp":1787392800000}
 ```
 
-主要错误：`17200` 媒体不存在、`17201` 空分类、`17202` 地点无效、`17100` 标签不存在，以及重复标签 ID 对应通用 `400`。
+主要错误：`17200` 媒体不存在、`17201` 空分类、`17202` 地点无效、`15200` 标签不存在，以及重复标签 ID 对应通用 `400`。
 
 ### 8.16 隐藏媒体
 
@@ -2654,13 +2660,13 @@ token: <管理员 accessToken>
 | `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
 | `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
 | `data.shotAt` | string | 是 | 拍摄时间 |
-| `data.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.status` | number | 否 | 隐藏成功后为 `0` |
 | `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
 
 ```json
-{"code":0,"msg":"媒体已隐藏","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":0,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:40:00"},"timestamp":1787392800000}
+{"code":0,"msg":"媒体已隐藏","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":[{"id":1,"name":"建筑"},{"id":2,"name":"晚霞"}],"status":0,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:40:00"},"timestamp":1787392800000}
 ```
 
 主要错误：`17200` 媒体不存在、`17203` 已经隐藏。
@@ -2682,13 +2688,13 @@ token: <管理员 accessToken>
 | `data.submissionId`、`uploaderId`、`locationId` | number | 是 | 来源投稿、上传者、地点 ID |
 | `data.imageUrl`、`thumbnailUrl`、`title`、`description` | string | 是 | 图片、缩略图、标题、描述 |
 | `data.shotAt` | string | 是 | 拍摄时间 |
-| `data.tags` | array&lt;string&gt; | 否 | 标签数组 |
+| `data.tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.status` | number | 否 | 恢复成功后为 `1` |
 | `data.viewCount`、`likeCount`、`favoriteCount`、`downloadCount` | number | 否 | 各类计数 |
 | `data.createdAt`、`updatedAt` | string | 是 | 创建、更新时间 |
 
 ```json
-{"code":0,"msg":"媒体已恢复","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":["建筑","晚霞"],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:50:00"},"timestamp":1787392800000}
+{"code":0,"msg":"媒体已恢复","data":{"id":501,"submissionId":701,"uploaderId":1001,"locationId":101,"imageUrl":"https://r2.example.com/media-501.jpg?X-Amz-Signature=...","thumbnailUrl":"https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...","title":"知新楼晚霞","description":"傍晚的知新楼","shotAt":"2026-08-15T18:30:00","tags":[{"id":1,"name":"建筑"},{"id":2,"name":"晚霞"}],"status":1,"viewCount":121,"likeCount":12,"favoriteCount":7,"downloadCount":2,"createdAt":"2026-08-15T19:00:00","updatedAt":"2026-08-22T10:50:00"},"timestamp":1787392800000}
 ```
 
 主要错误：`17200` 媒体不存在、`17202` 地点缺失或停用、`17204` 已经可见。
@@ -2721,7 +2727,7 @@ GET /admin/tags?keyword=建筑
 token: <管理员 accessToken>
 ```
 
-`keyword` 可选，最长 32 字符，按标签名模糊匹配。接口不分页，按标签名、ID 升序；`mediaCount` 统计所有引用该标签名的媒体，包括隐藏媒体。
+`keyword` 可选，最长 32 字符，按标签名模糊匹配。接口不分页，按标签名、ID 升序；`mediaCount` 通过媒体标签关系表统计，包括隐藏媒体。
 
 响应 `data` 字段：
 
@@ -2774,7 +2780,7 @@ Content-Type: application/json
 {"name":"校园建筑"}
 ```
 
-名称规则同 8.15。改名会同步替换所有媒体（包括隐藏媒体）中的该标签，并对重复标签去重。
+名称规则同 8.15。改名只修改标签主数据，稿件和媒体的标签关系保持不变。
 
 响应 `data` 字段：
 
@@ -2790,7 +2796,7 @@ Content-Type: application/json
 
 主要错误：`17100` 标签不存在、`17101` 新名称已存在。
 
-### 8.22 合并或删除标签
+### 8.22 合并标签
 
 ```http
 POST /admin/tags/{tagId}/merge
@@ -2800,9 +2806,9 @@ Content-Type: application/json
 
 | 字段 | JSON 类型 | 必填 | 说明 |
 |---|---|---:|---|
-| `targetTagId` | number | 否 | 正数目标标签 ID；传 `null` 或省略表示删除源标签，非空表示合并 |
+| `targetTagId` | number | 是 | 正数目标标签 ID |
 
-合并会把所有媒体中的源标签替换为目标标签并去重，然后删除源标签；删除则从所有媒体移除源标签。不能合并到自身。
+合并会锁定源、目标标签，把所有稿件和媒体的源标签关系替换为目标标签并去重，然后删除源标签。若同一对象原本同时拥有源标签和目标标签，将保留两者中更靠前的位置，并重新生成从 `0` 开始的连续标签顺序。不能合并到自身。
 
 响应 `data` 字段：
 
@@ -2814,7 +2820,24 @@ Content-Type: application/json
 {"code":0,"msg":"标签合并成功","data":null,"timestamp":1787392800000}
 ```
 
-`targetTagId` 为空时成功文案为“标签已删除”。主要错误：`17100` 源或目标标签不存在、`17103` 合并到自身。
+主要错误：`17100` 源或目标标签不存在、`17103` 合并到自身。
+
+### 8.22.1 删除标签
+
+```http
+DELETE /admin/tags/{tagId}?force=false
+token: <管理员 accessToken>
+```
+
+`force` 默认为 `false`。普通删除遇到仍被稿件或媒体引用的标签时返回冲突，不修改任何数据；只有显式传入 `force=true` 才会先删除全部稿件、媒体标签关系，再删除标签主数据。
+
+响应 `data` 固定为 `null`：
+
+```json
+{"code":0,"msg":"标签删除成功","data":null,"timestamp":1787392800000}
+```
+
+主要错误：`17100` 标签不存在、`17104 / HTTP 409` 标签仍被稿件或媒体引用。
 
 ### 8.23 创建专题
 
@@ -3066,6 +3089,45 @@ JSON 响应示例：
 
 ## 10. 搜索、发现与话题
 
+### 10.0 公共标签
+
+标签选择分页接口：
+
+```http
+GET /tags?keyword=建筑&sort=name&page=1&size=50
+```
+
+权限：公开。`keyword` 可选，最长 32 字符；`sort` 支持 `name`（名称、ID 稳定排序）和 `popular`（按符合完整可见层级的媒体数降序，再按名称、ID 排序）；`page` 默认为 `1`，`size` 默认为 `50`、最大 `100`。
+
+```json
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "total": 2,
+    "page": 1,
+    "size": 50,
+    "items": [
+      {"id": 1, "name": "建筑"},
+      {"id": 2, "name": "古建筑"}
+    ]
+  },
+  "timestamp": 1786860000000
+}
+```
+
+编辑页可一次按请求顺序回显最多 20 个标签：
+
+```http
+GET /tags/lookup?ids=2&ids=1
+```
+
+```json
+{"code":0,"msg":"成功","data":[{"id":2,"name":"晚霞"},{"id":1,"name":"建筑"}],"timestamp":1786860000000}
+```
+
+`ids` 必填、必须为不重复的正数；任何标签不存在时返回 `15200 / HTTP 404`。
+
 ### 10.1 搜索建议
 
 ```http
@@ -3082,7 +3144,7 @@ Query 参数：
 | `q` | string | 否 | - | 兼容旧客户端；仅在 `keyword` 为空时使用 |
 | `limit` | number | 否 | `10` | 小于 1 按 1，大于 20 按 20 |
 
-`keyword` 和 `q` 都未传或均为空时，接口仍会返回通用建议。建议按地点、校区、标签、媒体的顺序去重收集，达到 `limit` 后停止。
+`keyword` 和 `q` 都未传或均为空时，接口仍会返回通用建议。建议按地点、校区、标签、媒体的顺序去重收集，达到 `limit` 后停止。标签建议只从媒体、地点、校区和城市都启用的数据中产生，并返回真实标签 ID。
 
 响应 `data` 字段：
 
@@ -3090,7 +3152,7 @@ Query 参数：
 |---|---|---:|---|
 | `data` | array&lt;object&gt; | 否 | 搜索建议数组；没有结果时为 `[]` |
 | `data[].type` | string | 否 | `LOCATION`、`CAMPUS`、`TAG` 或 `MEDIA` |
-| `data[].id` | number | 是 | 地点、校区或媒体 ID；标签建议为 `null` |
+| `data[].id` | number | 否 | 地点、校区、标签或媒体 ID |
 | `data[].text` | string | 否 | 建议主文本 |
 | `data[].subtitle` | string | 是 | 校区、地址、地点名称或“标签”等辅助信息 |
 
@@ -3115,7 +3177,7 @@ JSON 响应示例：
     },
     {
       "type": "TAG",
-      "id": null,
+      "id": 1,
       "text": "建筑",
       "subtitle": "标签"
     },
@@ -3149,7 +3211,7 @@ Query 参数：
 | `campusId` | number | 否 | - | 正整数；按校区过滤 |
 | `locationId` | number | 否 | - | 正整数；按地点过滤 |
 | `topicId` | number | 否 | - | 正整数；按启用话题过滤 |
-| `tag` | string | 否 | - | 最长 30 字符；按完整标签过滤，不是模糊匹配 |
+| `tagId` | number | 否 | - | 正整数；按标签 ID 精确过滤 |
 | `shotYear` | number | 否 | - | `1900` 至 `2100` |
 | `sort` | string | 否 | `relevance` | `relevance`、`newest`、`oldest`、`hot`；忽略大小写和首尾空白 |
 | `page` | number | 否 | `1` | `1` 至 `10000` |
@@ -3176,6 +3238,7 @@ Query 参数：
 | `data.items[].locationName` | string | 是 | 地点名称 |
 | `data.items[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
+| `data.items[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].viewCount` | number | 否 | 浏览次数 |
 | `data.items[].likeCount` | number | 否 | 点赞数 |
 | `data.items[].favoriteCount` | number | 否 | 收藏数 |
@@ -3222,7 +3285,7 @@ GET /discovery/home?cityId=1
 |---|---|---:|---|---|
 | `cityId` | number | 否 | - | 传入时必须是启用城市；不传时聚合全部城市 |
 
-当前固定返回最多 12 条精选媒体、12 条最新媒体、12 个热门标签、6 个校区分区且每区最多 6 条媒体。热门标签根据最多 200 条热门媒体统计；话题列表和话题中的 `mediaCount` 当前不随 `cityId` 过滤。
+当前固定返回最多 12 条精选媒体、12 条最新媒体、12 个热门标签、6 个校区分区且每区最多 6 条媒体。热门标签对符合城市筛选且媒体、地点、校区、城市均启用的全部媒体聚合；话题列表和话题中的 `mediaCount` 当前不随 `cityId` 过滤。
 
 响应 `data` 字段：
 
@@ -3237,12 +3300,14 @@ GET /discovery/home?cityId=1
 | `data.featured[].locationName`、`data.latest[].locationName`、`data.campuses[].media[].locationName` | string | 是 | 地点名称 |
 | `data.featured[].thumbnailUrl`、`data.latest[].thumbnailUrl`、`data.campuses[].media[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.featured[].shotAt`、`data.latest[].shotAt`、`data.campuses[].media[].shotAt` | string | 是 | 拍摄时间 |
+| `data.featured[].tags`、`data.latest[].tags`、`data.campuses[].media[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.featured[].viewCount`、`data.latest[].viewCount`、`data.campuses[].media[].viewCount` | number | 否 | 浏览次数 |
 | `data.featured[].likeCount`、`data.latest[].likeCount`、`data.campuses[].media[].likeCount` | number | 否 | 点赞数 |
 | `data.featured[].favoriteCount`、`data.latest[].favoriteCount`、`data.campuses[].media[].favoriteCount` | number | 否 | 收藏数 |
 | `data.popularTags` | array&lt;object&gt; | 否 | 热门标签数组 |
+| `data.popularTags[].id` | number | 否 | 标签 ID |
 | `data.popularTags[].name` | string | 否 | 标签名称 |
-| `data.popularTags[].mediaCount` | number | 否 | 统计样本中包含该标签的媒体数 |
+| `data.popularTags[].mediaCount` | number | 否 | 符合当前城市和可见性条件的媒体数 |
 | `data.topics` | array&lt;object&gt; | 否 | 全局启用话题摘要数组 |
 | `data.topics[].id` | number | 否 | 话题 ID |
 | `data.topics[].name` | string | 否 | 话题名称 |
@@ -3272,6 +3337,7 @@ JSON 响应示例：
         "locationName": "知新楼",
         "thumbnailUrl": "https://r2.example.com/thumb-501.jpg?X-Amz-Signature=...",
         "shotAt": "2026-08-15T18:30:00",
+        "tags": [{"id":1,"name":"建筑"}],
         "viewCount": 121,
         "likeCount": 12,
         "favoriteCount": 7
@@ -3285,6 +3351,7 @@ JSON 响应示例：
         "locationName": "中心校区南门",
         "thumbnailUrl": "https://r2.example.com/thumb-502.jpg?X-Amz-Signature=...",
         "shotAt": "2026-08-16T06:30:00",
+        "tags": [{"id":2,"name":"清晨"}],
         "viewCount": 30,
         "likeCount": 5,
         "favoriteCount": 2
@@ -3292,6 +3359,7 @@ JSON 响应示例：
     ],
     "popularTags": [
       {
+        "id": 1,
         "name": "建筑",
         "mediaCount": 28
       }
@@ -3454,6 +3522,7 @@ GET /topics/{topicId}/media?page=1&size=20
 | `data.items[].locationName` | string | 是 | 地点名称 |
 | `data.items[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].viewCount` | number | 否 | 浏览次数 |
 | `data.items[].likeCount` | number | 否 | 点赞数 |
 | `data.items[].favoriteCount` | number | 否 | 收藏数 |
@@ -3746,6 +3815,7 @@ token: <accessToken>
 | `data.items[].locationName` | string | 是 | 地点名称 |
 | `data.items[].thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].shotAt` | string | 是 | 拍摄时间 |
+| `data.items[].tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].viewCount` | number | 否 | 浏览次数 |
 | `data.items[].likeCount` | number | 否 | 点赞数 |
 | `data.items[].favoriteCount` | number | 否 | 收藏数 |
@@ -4278,6 +4348,7 @@ Query 参数：
 | `data.items[].media.locationName` | string | 是 | 地点名称 |
 | `data.items[].media.thumbnailUrl` | string | 否 | 缩略图预签名 URL |
 | `data.items[].media.shotAt` | string | 是 | 拍摄时间，ISO LocalDateTime |
+| `data.items[].media.tags` | array&lt;object&gt; | 否 | 标签对象数组，元素包含 `id`、`name` |
 | `data.items[].media.viewCount` | number | 否 | 媒体总浏览次数 |
 | `data.items[].media.likeCount` | number | 否 | 媒体点赞数 |
 | `data.items[].media.favoriteCount` | number | 否 | 媒体收藏数 |
@@ -5195,10 +5266,12 @@ JSON 响应示例：
 
 | HTTP | `code` | 默认 `msg` |
 |---:|---:|---|
+| 404 | `15200` | 标签不存在 |
 | 404 | `17100` | 标签不存在 |
 | 409 | `17101` | 标签名称已存在 |
 | 400 | `17102` | 请提供需要修改的标签名称 |
 | 409 | `17103` | 标签不能合并到自身 |
+| 409 | `17104` | 标签仍被稿件或媒体引用 |
 | 404 | `17110` | 地点不存在 |
 | 400 | `17111` | 请至少提供一项需要修改的地点信息 |
 | 400 | `17112` | 目标校区不存在或已停用 |
@@ -5250,7 +5323,7 @@ JSON 响应示例：
 - 公开媒体详情需要展示用户互动状态时携带有效 token；未登录时按 `false` 处理。
 - 所有接口先检查 HTTP 状态，再检查 `code === 0`，不要依赖 `msg` 文案。
 - 枚举传英文大写名称；投稿状态使用 `PENDING/APPROVED/RETURNED/WITHDRAWN/REJECTED`，审核决定使用 `APPROVE/RETURN/REJECT`。
-- 投稿使用多值 FormData 字段；创建投稿传 `tagIds`，修改投稿当前仍传 `tags`，文件均传 `files`；不手动写 multipart boundary。
+- 投稿使用多值 FormData 字段；创建和修改投稿均传 `tagIds`，文件均传 `files`；不手动写 multipart boundary。
 - 头像使用字段名为 `file` 的 FormData 上传；限制为 PNG、JPEG、WebP 和 5 MiB。
 - 预签名 URL（包括媒体、投稿预览、头像和旧版下载地址）只作短期展示/下载使用，过期后重新请求对应详情。
 - 浏览器按钮下载原图推荐先调用 `/media/{mediaId}/downloads/ticket` 取票，再打开 `/media/downloads/stream?ticket=...`；流式下载响应是文件二进制，不是统一 JSON。

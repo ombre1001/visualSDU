@@ -1,22 +1,12 @@
 package cn.sduonline.business.service;
 
 import cn.sduonline.business.data.enums.UserStatus;
-import cn.sduonline.business.data.po.Campus;
-import cn.sduonline.business.data.po.City;
-import cn.sduonline.business.data.po.Location;
-import cn.sduonline.business.data.po.Topic;
-import cn.sduonline.business.data.po.User;
+import cn.sduonline.business.data.po.*;
 import cn.sduonline.business.data.vo.LocationFavoriteVO;
 import cn.sduonline.business.data.vo.LocationListVO;
 import cn.sduonline.business.data.vo.TopicFavoriteVO;
 import cn.sduonline.business.data.vo.TopicSummaryVO;
-import cn.sduonline.business.mapper.CampusMapper;
-import cn.sduonline.business.mapper.CityMapper;
-import cn.sduonline.business.mapper.LocationMapper;
-import cn.sduonline.business.mapper.TopicMediaMapper;
-import cn.sduonline.business.mapper.TopicMapper;
-import cn.sduonline.business.mapper.UserFavoriteTargetMapper;
-import cn.sduonline.business.mapper.UserMapper;
+import cn.sduonline.business.mapper.*;
 import cn.sduonline.business.security.context.CurrentUser;
 import cn.sduonline.common.exception.BizCode;
 import cn.sduonline.common.exception.BizException;

@@ -17,7 +17,13 @@
             AND (
                 m.title LIKE CONCAT('%', #{query.q}, '%')
                 OR m.description LIKE CONCAT('%', #{query.q}, '%')
-                OR m.tags LIKE CONCAT('%', #{query.q}, '%')
+                OR EXISTS (
+                    SELECT 1
+                    FROM media_tag search_mt
+                    INNER JOIN tag search_tag ON search_tag.id = search_mt.tag_id
+                    WHERE search_mt.media_id = m.id
+                      AND search_tag.name LIKE CONCAT('%', #{query.q}, '%')
+                )
                 OR l.name LIKE CONCAT('%', #{query.q}, '%')
                 OR l.address LIKE CONCAT('%', #{query.q}, '%')
                 OR c.name LIKE CONCAT('%', #{query.q}, '%')
@@ -33,11 +39,13 @@
         <if test="query.locationId != null">
             AND l.id = #{query.locationId}
         </if>
-        <if test="query.tag != null and query.tag != ''">
-            AND LOCATE(
-                CONCAT('|', #{query.tag}, '|'),
-                CONCAT('|', COALESCE(m.tags, ''), '|')
-            ) > 0
+        <if test="query.tagId != null">
+            AND EXISTS (
+                SELECT 1
+                FROM media_tag filter_mt
+                WHERE filter_mt.media_id = m.id
+                  AND filter_mt.tag_id = #{query.tagId}
+            )
         </if>
         <if test="query.shotYear != null">
             AND YEAR(m.shot_at) = #{query.shotYear}
@@ -67,7 +75,6 @@
             m.location_id,
             l.name AS location_name,
             COALESCE(NULLIF(m.thumbnail_key, ''), m.object_key) AS thumbnail_key,
-            m.tags,
             m.shot_at,
             m.view_count,
             m.like_count,
@@ -97,7 +104,13 @@
                     WHEN c.name = #{query.q} THEN 90
                     WHEN ci.name = #{query.q} THEN 85
                     WHEN m.title LIKE CONCAT(#{query.q}, '%') THEN 80
-                    WHEN m.tags LIKE CONCAT('%', #{query.q}, '%') THEN 60
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM media_tag rank_mt
+                        INNER JOIN tag rank_tag ON rank_tag.id = rank_mt.tag_id
+                        WHERE rank_mt.media_id = m.id
+                          AND rank_tag.name LIKE CONCAT('%', #{query.q}, '%')
+                    ) THEN 60
                     WHEN m.description LIKE CONCAT('%', #{query.q}, '%') THEN 40
                     ELSE 10
                 END DESC,

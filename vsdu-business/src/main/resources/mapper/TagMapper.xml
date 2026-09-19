@@ -4,6 +4,53 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.sduonline.business.mapper.TagMapper">
 
+    <select id="selectByIdsForUpdate" resultType="cn.sduonline.business.data.po.Tag">
+        SELECT id, name, created_at, updated_at
+        FROM tag
+        WHERE id IN
+        <foreach collection="tagIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY id
+        FOR UPDATE
+    </select>
+
+    <select id="countPublicTags" resultType="long">
+        SELECT COUNT(*)
+        FROM tag t
+        <where>
+            <if test="keyword != null and keyword != ''">
+                t.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="selectPublicTagPage" resultType="cn.sduonline.business.data.po.Tag">
+        SELECT t.id, t.name
+        FROM tag t
+        LEFT JOIN media_tag mt ON mt.tag_id = t.id
+        LEFT JOIN media m ON m.id = mt.media_id AND m.status = 1
+        LEFT JOIN location l ON l.id = m.location_id AND l.status = 1
+        LEFT JOIN campus c ON c.id = l.campus_id AND c.status = 1
+        LEFT JOIN city ci ON ci.id = c.city_id AND ci.status = 1
+        <where>
+            <if test="keyword != null and keyword != ''">
+                t.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        GROUP BY t.id, t.name
+        ORDER BY
+        <choose>
+            <when test='sort == "popular"'>
+                COUNT(ci.id) DESC, t.name, t.id
+            </when>
+            <otherwise>
+                t.name, t.id
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="selectAdminTagStats"
             resultType="cn.sduonline.business.data.projection.AdminTagStatRow">
         SELECT
@@ -13,11 +60,8 @@
             t.created_at,
             t.updated_at
         FROM tag t
-        LEFT JOIN media m
-          ON LOCATE(
-              CONCAT('|', t.name, '|'),
-              CONCAT('|', COALESCE(m.tags, ''), '|')
-          ) > 0
+        LEFT JOIN media_tag mt ON mt.tag_id = t.id
+        LEFT JOIN media m ON m.id = mt.media_id
         <where>
             <if test="keyword != null and keyword != ''">
                 t.name LIKE CONCAT('%', #{keyword}, '%')
@@ -27,12 +71,17 @@
         ORDER BY t.name, t.id
     </select>
 
-    <select id="selectUsedTagSuggestions" resultType="string">
-        SELECT t.name
+    <select id="selectUsedTagSuggestions"
+            resultType="cn.sduonline.business.data.projection.SearchSuggestionRow">
+        SELECT 'TAG' AS type,
+               t.id,
+               t.name AS text,
+               '标签' AS subtitle
         FROM tag t
+        INNER JOIN media_tag mt ON mt.tag_id = t.id
         INNER JOIN (
             SELECT
-                ranked.tags,
+                ranked.id,
                 ROW_NUMBER() OVER (
                     ORDER BY
                         ranked.favorite_count DESC,
@@ -41,12 +90,21 @@
                         ranked.id DESC
                 ) AS media_rank
             FROM media ranked
+            INNER JOIN location ranked_l ON ranked_l.id = ranked.location_id AND ranked_l.status = 1
+            INNER JOIN campus ranked_c ON ranked_c.id = ranked_l.campus_id AND ranked_c.status = 1
+            INNER JOIN city ranked_ci ON ranked_ci.id = ranked_c.city_id AND ranked_ci.status = 1
             WHERE ranked.status = 1
             <if test="keyword != null and keyword != ''">
                 AND (
                     ranked.title LIKE CONCAT('%', #{keyword}, '%')
                     OR ranked.description LIKE CONCAT('%', #{keyword}, '%')
-                    OR ranked.tags LIKE CONCAT('%', #{keyword}, '%')
+                    OR EXISTS (
+                        SELECT 1
+                        FROM media_tag keyword_mt
+                        INNER JOIN tag keyword_tag ON keyword_tag.id = keyword_mt.tag_id
+                        WHERE keyword_mt.media_id = ranked.id
+                          AND keyword_tag.name LIKE CONCAT('%', #{keyword}, '%')
+                    )
                 )
             </if>
             ORDER BY
@@ -55,11 +113,7 @@
                 ranked.view_count DESC,
                 ranked.id DESC
             LIMIT #{limit}
-        ) candidate
-          ON LOCATE(
-              CONCAT('|', t.name, '|'),
-              CONCAT('|', COALESCE(candidate.tags, ''), '|')
-          ) > 0
+        ) candidate ON candidate.id = mt.media_id
         <where>
         <if test="keyword != null and keyword != ''">
             t.name LIKE CONCAT('%', #{keyword}, '%')
@@ -68,7 +122,7 @@
         GROUP BY t.id, t.name
         ORDER BY
             MIN(candidate.media_rank),
-            MIN(LOCATE(t.name, candidate.tags)),
+            MIN(mt.sort_order),
             t.id
         LIMIT #{limit}
     </select>

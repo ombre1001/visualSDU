@@ -26,6 +26,8 @@ class SubmissionPublicationServiceTest {
     private SubmissionAssetMapper assetMapper;
     @Mock
     private MediaMapper mediaMapper;
+    @Mock
+    private TagRelationService tagRelationService;
     @InjectMocks
     private SubmissionPublicationService service;
 
@@ -37,7 +39,6 @@ class SubmissionPublicationServiceTest {
                 .locationId(8L)
                 .description("校园秋景")
                 .shotAt(LocalDateTime.of(2026, 8, 1, 10, 0))
-                .tags("秋天|校园")
                 .status(SubmissionStatus.APPROVED)
                 .build();
         SubmissionAsset asset = new SubmissionAsset();
@@ -63,6 +64,7 @@ class SubmissionPublicationServiceTest {
         assertThat(mediaCaptor.getValue().getObjectKey()).isEqualTo("submission/5/photo.jpg");
         assertThat(mediaCaptor.getValue().getStatus()).isEqualTo(1);
         assertThat(asset.getMediaId()).isEqualTo(30L);
+        verify(tagRelationService).copySubmissionTagsToMedia(10L, 30L);
         verify(assetMapper).updateById(asset);
     }
 }

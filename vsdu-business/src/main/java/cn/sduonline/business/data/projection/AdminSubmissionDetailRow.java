@@ -19,7 +19,6 @@ public class AdminSubmissionDetailRow {
     private String locationName;
     private String description;
     private LocalDateTime shotAt;
-    private String tags;
     private SubmissionStatus status;
     private String reviewReason;
     private LocalDateTime submittedAt;

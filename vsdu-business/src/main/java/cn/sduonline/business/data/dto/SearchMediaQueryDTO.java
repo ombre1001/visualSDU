@@ -27,8 +27,8 @@ public class SearchMediaQueryDTO {
     @Positive(message = "topicId必须为正整数")
     private Long topicId;
 
-    @Size(max = 30, message = "标签长度不能超过30个字符")
-    private String tag;
+    @Positive(message = "tagId必须为正整数")
+    private Long tagId;
 
     @Min(value = 1900, message = "拍摄年份不能早于1900年")
     @Max(value = 2100, message = "拍摄年份不能晚于2100年")

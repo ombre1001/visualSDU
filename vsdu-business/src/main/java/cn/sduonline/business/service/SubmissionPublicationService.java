@@ -22,6 +22,7 @@ public class SubmissionPublicationService {
 
     private final SubmissionAssetMapper assetMapper;
     private final MediaMapper mediaMapper;
+    private final TagRelationService tagRelationService;
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishAssets(Submission submission) {
@@ -47,6 +48,8 @@ public class SubmissionPublicationService {
                 mediaMapper.insert(media);
             }
 
+            tagRelationService.copySubmissionTagsToMedia(submission.getId(), media.getId());
+
             asset.setMediaId(media.getId());
             assetMapper.updateById(asset);
         }
@@ -62,7 +65,6 @@ public class SubmissionPublicationService {
         media.setTitle(mediaTitle(asset.getOriginalName()));
         media.setDescription(submission.getDescription());
         media.setShotAt(submission.getShotAt());
-        media.setTags(submission.getTags());
         media.setStatus(VISIBLE);
         media.setViewCount(0L);
         media.setLikeCount(0L);

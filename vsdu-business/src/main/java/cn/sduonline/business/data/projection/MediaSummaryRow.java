@@ -11,7 +11,6 @@ public class MediaSummaryRow {
     private Long locationId;
     private String locationName;
     private String thumbnailKey;
-    private String tags;
     private LocalDateTime shotAt;
     private Long viewCount;
     private Long likeCount;

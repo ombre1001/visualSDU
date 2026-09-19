@@ -69,7 +69,13 @@
         <if test="keyword != null and keyword != ''">
             AND (
                 s.description LIKE CONCAT('%', #{keyword}, '%')
-                OR s.tags LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (
+                    SELECT 1
+                    FROM submission_tag st
+                    INNER JOIN tag matched_tag ON matched_tag.id = st.tag_id
+                    WHERE st.submission_id = s.id
+                      AND matched_tag.name LIKE CONCAT('%', #{keyword}, '%')
+                )
                 OR u.phone LIKE CONCAT('%', #{keyword}, '%')
                 OR u.cas_id LIKE CONCAT('%', #{keyword}, '%')
                 OR u.name LIKE CONCAT('%', #{keyword}, '%')
@@ -95,7 +101,6 @@
             l.name AS location_name,
             s.description,
             s.shot_at,
-            s.tags,
             s.status,
             s.review_reason,
             (
@@ -155,7 +160,6 @@
             l.name AS location_name,
             s.description,
             s.shot_at,
-            s.tags,
             s.status,
             s.review_reason,
             s.submitted_at,
@@ -196,7 +200,6 @@
         SET location_id = #{submission.locationId},
             description = #{submission.description},
             shot_at = #{submission.shotAt},
-            tags = #{submission.tags},
             updated_at = #{submission.updatedAt},
             version = version + 1
         WHERE id = #{submission.id}

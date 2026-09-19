@@ -14,7 +14,6 @@ public class AdminSubmissionSummaryRow {
     private String locationName;
     private String description;
     private LocalDateTime shotAt;
-    private String tags;
     private SubmissionStatus status;
     private String reviewReason;
     private Integer assetCount;

@@ -54,15 +54,21 @@ public class AdminTagController {
         return Result.success(service.update(tagId, request.name()), "标签修改成功");
     }
 
-    /**
-     * 合并或删除标签
-     * 传入目标标签时合并标签，不传目标标签时删除源标签。
-     */
+    /** 将源标签合并到目标标签。 */
     @AdminApi
     @PostMapping("/{tagId}/merge")
     public Result<Void> merge(@PathVariable @Positive Long tagId,
                               @Valid @RequestBody AdminMergeTagRequest request) {
-        service.mergeOrDelete(tagId, request.targetTagId());
-        return Result.success(null, request.targetTagId() == null ? "标签已删除" : "标签合并成功");
+        service.merge(tagId, request.targetTagId());
+        return Result.success(null, "标签合并成功");
+    }
+
+    /** 删除标签；被引用的标签只有显式 force=true 时才会连同关系一起删除。 */
+    @AdminApi
+    @DeleteMapping("/{tagId}")
+    public Result<Void> delete(@PathVariable @Positive Long tagId,
+                               @RequestParam(defaultValue = "false") boolean force) {
+        service.delete(tagId, force);
+        return Result.success(null, "标签删除成功");
     }
 }

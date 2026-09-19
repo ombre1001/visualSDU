@@ -5,6 +5,7 @@ import cn.sduonline.business.data.po.TimeComparison;
 import cn.sduonline.business.data.po.TimeComparisonItem;
 import cn.sduonline.business.data.projection.MediaSummaryRow;
 import cn.sduonline.business.data.projection.TimeComparisonSummaryRow;
+import cn.sduonline.business.data.vo.MediaDetailVO;
 import cn.sduonline.business.data.vo.MediaSummaryVO;
 import cn.sduonline.business.data.vo.TimeComparisonDetailVO;
 import cn.sduonline.business.data.vo.TimeComparisonSummaryVO;
@@ -20,6 +21,9 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +38,13 @@ public class TimeComparisonService {
     public List<TimeComparisonSummaryVO> list(Long locationId, int size) {
         int safeSize = Math.clamp(size, 1, 100);
         List<TimeComparisonSummaryRow> rows = comparisonMapper.selectSummaryRows(locationId, safeSize);
+        Map<Long, MediaSummaryVO> summariesByMediaId = mediaService.toSummaries(
+                        rows.stream()
+                                .filter(row -> row.getMediaId() != null)
+                                .map(this::toMediaSummaryRow)
+                                .toList()
+                ).stream()
+                .collect(Collectors.toMap(MediaSummaryVO::id, Function.identity(), (first, ignored) -> first));
         Map<Long, TimeComparisonSummaryRow> headers = new LinkedHashMap<>();
         Map<Long, List<MediaSummaryVO>> mediaByComparison = new LinkedHashMap<>();
         for (TimeComparisonSummaryRow row : rows) {
@@ -41,7 +52,7 @@ public class TimeComparisonService {
             List<MediaSummaryVO> media = mediaByComparison.computeIfAbsent(
                     row.getComparisonId(), _ -> new java.util.ArrayList<>()
             );
-            if (row.getMediaId() != null) media.add(toMediaSummary(row));
+            if (row.getMediaId() != null) media.add(summariesByMediaId.get(row.getMediaId()));
         }
         return headers.values().stream()
                 .map(row -> new TimeComparisonSummaryVO(
@@ -55,10 +66,14 @@ public class TimeComparisonService {
     public TimeComparisonDetailVO detail(Long comparisonId, Long optionalUserId) {
         TimeComparison comparison = requireVisible(comparisonId);
         Location location = locationMapper.selectById(comparison.getLocationId());
-        List<TimeComparisonDetailVO.Item> items = listItems(comparisonId).stream()
-                .map(item -> new TimeComparisonDetailVO.Item(
-                        item.getLabel(),
-                        mediaService.detail(item.getMediaId(), optionalUserId)
+        List<TimeComparisonItem> relations = listItems(comparisonId);
+        List<MediaDetailVO> media = mediaService.details(
+                relations.stream().map(TimeComparisonItem::getMediaId).toList(),
+                optionalUserId
+        );
+        List<TimeComparisonDetailVO.Item> items = IntStream.range(0, relations.size())
+                .mapToObj(index -> new TimeComparisonDetailVO.Item(
+                        relations.get(index).getLabel(), media.get(index)
                 ))
                 .toList();
         return new TimeComparisonDetailVO(
@@ -67,7 +82,7 @@ public class TimeComparisonService {
         );
     }
 
-    private MediaSummaryVO toMediaSummary(TimeComparisonSummaryRow source) {
+    private MediaSummaryRow toMediaSummaryRow(TimeComparisonSummaryRow source) {
         MediaSummaryRow row = new MediaSummaryRow();
         row.setId(source.getMediaId());
         row.setTitle(source.getMediaTitle());
@@ -78,7 +93,7 @@ public class TimeComparisonService {
         row.setViewCount(source.getMediaViewCount());
         row.setLikeCount(source.getMediaLikeCount());
         row.setFavoriteCount(source.getMediaFavoriteCount());
-        return mediaService.toSummary(row);
+        return row;
     }
 
     private TimeComparison requireVisible(Long comparisonId) {

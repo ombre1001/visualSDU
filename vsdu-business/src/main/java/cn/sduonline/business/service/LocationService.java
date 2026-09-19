@@ -129,11 +129,9 @@ public class LocationService {
 
         long offset = (safePage - 1) * safeSize;
 
-        List<MediaSummaryVO> items = mediaMapper
-                .selectVisibleByLocationPage(location.getId(), offset, safeSize)
-                .stream()
-                .map(mediaService::toSummary)
-                .toList();
+        List<MediaSummaryVO> items = mediaService.toSummaries(
+                mediaMapper.selectVisibleByLocationPage(location.getId(), offset, safeSize)
+        );
 
         return new PageResult<>(
                 total,
